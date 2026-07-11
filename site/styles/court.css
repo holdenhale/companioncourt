@@ -1,0 +1,541 @@
+/* ==========================================================================
+   CompanionCourt — court.css
+   A single, self-contained stylesheet. No external fonts, no CDNs, no JS.
+   Court-record aesthetic: paper + ink, one accent red for RED verdicts.
+   Light and dark via prefers-color-scheme. Works with CSS disabled.
+   ========================================================================== */
+
+/* ---- Design tokens : light (default) ---------------------------------- */
+:root {
+  --paper:        #f7f4ec;
+  --paper-raised: #fffdf7;
+  --paper-sunk:   #efeadd;
+  --ink:          #201d18;
+  --ink-soft:     #4b463d;
+  --ink-faint:    #726c60;
+  --rule:         #ddd5c4;
+  --rule-strong:  #c3b9a2;
+  --accent:       #9e1f27;   /* RED verdict accent */
+  --accent-soft:  #f4e5e2;   /* tinted background for red blocks */
+  --accent-ink:   #7c1a20;   /* red text with enough contrast on paper */
+  --focus:        #1a4f8a;
+
+  /* Banner is a fixed "stamped notice" palette in both themes. */
+  --banner-bg:    #2a2620;
+  --banner-ink:   #f1ead9;
+  --banner-edge:  #9e1f27;
+
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", "Songti SC", "SimSun", "STSong", serif;
+  --sans:  system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
+  --mono:  ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --measure: 70ch;      /* reading line-length limit */
+  --page-max: 78rem;    /* full-width chrome limit */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper:        #16171a;
+    --paper-raised: #1e1f23;
+    --paper-sunk:   #101113;
+    --ink:          #e7e3d9;
+    --ink-soft:     #bab4a7;
+    --ink-faint:    #8b8578;
+    --rule:         #33343a;
+    --rule-strong:  #474851;
+    --accent:       #e2666c;
+    --accent-soft:  #331f1f;
+    --accent-ink:   #ed8b8f;
+    --focus:        #7fb2ef;
+
+    --banner-bg:    #211d18;
+    --banner-ink:   #ece4d2;
+    --banner-edge:  #e2666c;
+  }
+}
+
+/* ---- Reset-ish base --------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  line-height: 1.62;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+img { max-width: 100%; height: auto; }
+
+a { color: inherit; text-decoration: underline; text-underline-offset: 0.14em; text-decoration-thickness: from-font; }
+a:hover { color: var(--accent-ink); }
+a:focus-visible,
+summary:focus-visible,
+.skip-link:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 1px;
+}
+
+/* Skip link */
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: -3rem;
+  z-index: 100;
+  background: var(--paper-raised);
+  color: var(--ink);
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--rule-strong);
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+.skip-link:focus { top: 0.5rem; }
+
+/* ---- Banner (stamped notice) ------------------------------------------ */
+.banner {
+  background: var(--banner-bg);
+  color: var(--banner-ink);
+  border-bottom: 2px solid var(--banner-edge);
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  text-align: center;
+  padding: 0.5rem 1rem;
+}
+/* When S2 renders an inline banner inside prose, keep it legible but calmer. */
+.prose .banner {
+  text-transform: none;
+  letter-spacing: 0;
+  text-align: left;
+  border-radius: 3px;
+  border: 1px solid var(--rule-strong);
+  border-left: 3px solid var(--banner-edge);
+  margin: 1.5rem 0;
+}
+
+/* ---- Masthead + nav --------------------------------------------------- */
+.masthead {
+  border-bottom: 1px solid var(--rule-strong);
+  background: var(--paper-raised);
+}
+.masthead-inner {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 0.9rem 1.25rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+}
+.wordmark {
+  text-decoration: none;
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.2;
+  padding-bottom: 0.7rem;
+}
+.wordmark:hover { color: inherit; }
+.wordmark-name {
+  font-family: var(--serif);
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.wordmark-tag {
+  font-family: var(--sans);
+  font-size: 0.74rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.01em;
+  margin-top: 0.15rem;
+}
+.nav {
+  font-family: var(--sans);
+  font-size: 0.86rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.35rem;
+  align-items: baseline;
+  padding-bottom: 0.35rem;
+}
+.nav a {
+  text-decoration: none;
+  color: var(--ink-soft);
+  padding: 0.35rem 0.5rem;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+.nav a:hover { color: var(--ink); border-bottom-color: var(--rule-strong); }
+/* Active section (set by base.html's {{NAV_ACTIVE}} -> body[data-nav]) */
+body[data-nav="docket"]        .nav a[data-nav="docket"],
+body[data-nav="rulings"]       .nav a[data-nav="rulings"],
+body[data-nav="essays"]        .nav a[data-nav="essays"],
+body[data-nav="rules"]         .nav a[data-nav="rules"],
+body[data-nav="evidence"]      .nav a[data-nav="evidence"],
+body[data-nav="glossary"]      .nav a[data-nav="glossary"],
+body[data-nav="submit"]        .nav a[data-nav="submit"],
+body[data-nav="transparency"]  .nav a[data-nav="transparency"] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+/* ---- Main reading column --------------------------------------------- */
+main {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 3rem;
+}
+.prose { max-width: var(--measure); }
+/* Elements that legitimately exceed the measure sit full main-width. */
+.prose .full-bleed,
+.prose .table-wrap { max-width: none; }
+
+/* Headings */
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  font-family: var(--serif);
+  line-height: 1.22;
+  font-weight: 700;
+  margin: 2.2rem 0 0.7rem;
+}
+.prose h1 {
+  font-size: 2.05rem;
+  margin-top: 0.2rem;
+  letter-spacing: -0.01em;
+}
+.prose h2 {
+  font-size: 1.5rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--rule);
+}
+.prose h3 { font-size: 1.2rem; }
+.prose h4 { font-size: 1.02rem; color: var(--ink-soft); }
+.prose h1 + p.lede,
+.prose .lede {
+  font-size: 1.2rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.prose p, .prose ul, .prose ol { margin: 0.9rem 0; }
+.prose li { margin: 0.35rem 0; }
+.prose ul, .prose ol { padding-left: 1.4rem; }
+.prose li::marker { color: var(--ink-faint); }
+
+.prose strong { font-weight: 700; }
+.prose em { font-style: italic; }
+
+/* Blockquotes */
+.prose blockquote {
+  margin: 1.4rem 0;
+  padding: 0.4rem 0 0.4rem 1.1rem;
+  border-left: 3px solid var(--rule-strong);
+  color: var(--ink-soft);
+  font-style: italic;
+}
+.prose blockquote p { margin: 0.5rem 0; }
+
+/* Rules / hr */
+.prose hr {
+  border: 0;
+  border-top: 1px solid var(--rule);
+  margin: 2.4rem 0;
+}
+
+/* Inline code + pre */
+code, kbd, samp { font-family: var(--mono); font-size: 0.9em; }
+.prose :not(pre) > code {
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 0.08em 0.34em;
+}
+.prose pre {
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 0.92rem;
+}
+.prose pre code { background: none; border: 0; padding: 0; }
+
+/* ---- Tables ----------------------------------------------------------- */
+.table-wrap { overflow-x: auto; margin: 1.4rem 0; }
+.prose table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.95rem;
+  font-family: var(--sans);
+}
+.prose th, .prose td {
+  text-align: left;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.prose thead th {
+  border-bottom: 2px solid var(--rule-strong);
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.prose tbody tr:hover { background: var(--paper-raised); }
+.prose td code { white-space: nowrap; }
+
+/* ---- Verdict + docket semantics --------------------------------------- */
+/* RED verdict marker (S2 emits .verdict-red). Inline badge + block variant. */
+.verdict-red {
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+.prose td .verdict-red,
+.verdict-red.badge,
+td.verdict-red {
+  display: inline-block;
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  color: var(--accent-ink);
+  border-radius: 3px;
+  padding: 0.08em 0.45em;
+}
+.prose p.verdict-red,
+.prose div.verdict-red {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-left: 4px solid var(--accent);
+  border-radius: 3px;
+  padding: 0.7rem 0.95rem;
+  font-family: var(--sans);
+}
+
+/* Non-red verdict word emphasis (upheld / NOT-YET / DISPUTED) stays ink. */
+.verdict { font-family: var(--sans); font-weight: 700; }
+
+/* Ruling metadata block (Ruling ID / Respondent / Case class / Evidence) */
+.ruling-meta {
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.9rem 1.1rem;
+  margin: 1.4rem 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.ruling-meta strong { color: var(--ink); }
+.ruling-meta p { margin: 0.3rem 0; }
+
+/* Contestability status block (S2 emits .contestability) */
+.contestability {
+  font-family: var(--sans);
+  font-size: 0.88rem;
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule-strong);
+  border-left: 3px solid var(--ink-faint);
+  border-radius: 3px;
+  padding: 0.8rem 1rem;
+  margin: 1.4rem 0;
+  color: var(--ink-soft);
+}
+.contestability strong { color: var(--ink); }
+
+/* Sources line (S2 emits .sources) */
+.sources {
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  line-height: 1.5;
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  margin-top: 2.2rem;
+}
+
+/* ---- Transcripts (S2 wraps <details> in .transcript) ------------------ */
+.transcript { margin: 1.4rem 0; }
+.transcript details,
+.prose details {
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  background: var(--paper-raised);
+  overflow: hidden;
+}
+.transcript summary,
+.prose details > summary {
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.7rem 0.95rem;
+  background: var(--paper-sunk);
+  list-style-position: inside;
+}
+.transcript summary:hover { color: var(--accent-ink); }
+.transcript details[open] > summary { border-bottom: 1px solid var(--rule); }
+.transcript .transcript-body,
+.transcript details > *:not(summary) {
+  padding: 0 1rem;
+}
+.transcript p { margin: 0.7rem 0; }
+/* Speaker turns often arrive as blockquotes inside the transcript. */
+.transcript blockquote {
+  font-style: normal;
+  border-left-width: 2px;
+  margin: 0.7rem 0;
+  color: var(--ink);
+}
+
+/* ---- Local page building blocks (used by hand-written pages) ---------- */
+.slogans {
+  font-family: var(--serif);
+  margin: 1.4rem 0 1.8rem;
+}
+.slogans .slogan {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0.2rem 0;
+}
+.slogans .slogan-zh { font-size: 1.15rem; color: var(--ink-soft); }
+
+.callout {
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--rule-strong);
+  border-radius: 3px;
+  padding: 0.9rem 1.1rem;
+  margin: 1.5rem 0;
+}
+.callout.accent { border-left-color: var(--accent); }
+
+.steps { counter-reset: step; list-style: none; padding-left: 0; }
+.steps > li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 2.6rem;
+  margin: 1rem 0;
+}
+.steps > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0.05em;
+  width: 1.8rem;
+  height: 1.8rem;
+  display: grid;
+  place-items: center;
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule-strong);
+  border-radius: 50%;
+}
+.steps > li strong { display: inline; }
+
+/* Bilingual mirror section */
+[lang="zh"] { font-family: var(--serif); }
+.zh-mirror {
+  margin-top: 2.6rem;
+  padding-top: 1.6rem;
+  border-top: 1px solid var(--rule-strong);
+}
+.zh-mirror .zh-label {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* Channel cards on the submit page */
+.channels { display: grid; gap: 1.1rem; margin: 1.6rem 0; }
+.channel {
+  border: 1px solid var(--rule-strong);
+  border-radius: 5px;
+  padding: 1.1rem 1.25rem;
+  background: var(--paper-raised);
+}
+.channel h3 { margin-top: 0; }
+.channel .channel-kicker {
+  font-family: var(--sans);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.note-strong {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+}
+
+/* ---- Footer ----------------------------------------------------------- */
+.site-footer {
+  border-top: 1px solid var(--rule-strong);
+  background: var(--paper-raised);
+  margin-top: 2rem;
+}
+.site-footer-inner {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 2rem 1.25rem 2.6rem;
+  font-family: var(--sans);
+  font-size: 0.86rem;
+  color: var(--ink-faint);
+}
+.footer-slogans { color: var(--ink-soft); font-size: 0.95rem; }
+.footer-slogans strong { color: var(--ink); }
+.footer-nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; margin: 0.9rem 0; }
+.footer-nav a { color: var(--ink-soft); text-decoration: none; }
+.footer-nav a:hover { color: var(--ink); text-decoration: underline; }
+.footer-meta { max-width: 70ch; line-height: 1.55; }
+
+/* ---- Responsive ------------------------------------------------------- */
+@media (max-width: 640px) {
+  body { font-size: 1rem; }
+  main { padding: 1.8rem 1rem 2.4rem; }
+  .masthead-inner { flex-direction: column; align-items: flex-start; }
+  .nav { padding-bottom: 0.5rem; }
+  .prose h1 { font-size: 1.7rem; }
+  .prose h2 { font-size: 1.3rem; }
+}
+
+/* ---- Print ------------------------------------------------------------ */
+@media print {
+  .banner, .nav, .skip-link, .site-footer { display: none; }
+  body { background: #fff; color: #000; font-size: 11pt; }
+  main { max-width: none; }
+  a { text-decoration: underline; }
+}
+
+/* ---- Reduced motion --------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* ---- Docket moment (first screen) ------------------------------------- */
+.moment { margin: 2rem 0 1.5rem; padding: 1.25rem 1.5rem; border: 1px solid var(--rule, #ccc); border-left: 4px solid var(--accent, #a33); }
+.moment-label { font-size: 0.85rem; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.75; margin-bottom: 0.75rem; }
+.moment blockquote { margin: 0.6rem 0; padding-left: 1rem; border-left: 3px solid var(--rule, #ccc); font-style: normal; }
+.moment-companion { border-left-color: var(--accent, #a33) !important; }
+.moment-holding { margin-top: 0.9rem; }
+.moment-cta { margin-top: 0.9rem; }
+.counter-line, .self-line { margin: 1rem 0; }
