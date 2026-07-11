@@ -46,15 +46,16 @@ progressive enhancement — never load-bearing for reading.
 
 **CSS classes the build emits** (all styled in `court.css`): `.banner`, `.contestability`,
 `.verdict-red`, `.transcript` (wraps `<details>` transcript blocks), `.sources`, `.ruling-meta`.
-The pre-publication banner is rendered once at the top of every page by `base.html` itself.
+Public-record and contestability blocks come from the rendered source documents; the shared template does not add a release-status banner.
 
 ### Link scheme
 
 All internal links are **root-absolute** (leading `/`) so the shared nav, footer, and
 `/styles/court.css` reference resolve identically from any directory depth. This assumes the site
-is served at the **domain root** (a user/org GitHub Pages site or a custom domain), which matches
-the nav paths in the contract (`/`, `/rulings/`, `/essays/`, `/rules/`, `/reports/`,
-`/glossary.html`, `/submit.html`, `/transparency.html`).
+is served at the **domain root**, which matches the clean nav paths in the contract (`/`,
+`/rulings/`, `/essays/`, `/rules/`, `/reports/`, `/glossary`, `/submit`, `/transparency`).
+Generated files retain `.html` names on disk; the build normalizes public links, canonical metadata,
+feeds, and sitemap entries to the extensionless URLs Cloudflare Pages serves directly.
 
 ### The `#gh` convention
 

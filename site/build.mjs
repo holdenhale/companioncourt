@@ -104,20 +104,37 @@ function rmrf(p) {
 
 const TEMPLATE = fs.readFileSync(TEMPLATE_PATH, 'utf8');
 
-/** Single place that turns a root-absolute path (or '/') into the canonical URL, so
+/** Map generated files to the clean URLs Cloudflare Pages actually serves. */
+function publicPath(outPath) {
+  if (outPath === '/index.html') return '/';
+  if (outPath.endsWith('/index.html')) return outPath.slice(0, -'index.html'.length);
+  if (outPath.endsWith('.html')) return outPath.slice(0, -'.html'.length);
+  return outPath;
+}
+
+/** Keep every root-absolute internal link on the same clean-URL contract. */
+function normalizeInternalLinks(html) {
+  return html.replace(/href="(\/[^"?#]+)\.html([?#][^"]*)?"/g, (_match, pathname, suffix = '') => {
+    return `href="${pathname}${suffix}"`;
+  });
+}
+
+/** Single place that turns a public path (or '/') into the canonical URL, so
  *  {{CANONICAL}} and every JSON-LD `url` field are always computed the same way. */
 function canonicalUrl(canonicalPath) {
   return canonicalPath === '/' ? SITE_URL : `${BASE_URL}${canonicalPath}`;
 }
 
-function fillTemplate({ title, description, canonicalPath, jsonld, navActive, contentHtml }) {
+function fillTemplate({ title, description, canonicalPath, jsonld, navActive, contentHtml, noindex = false }) {
   const canonical = canonicalUrl(canonicalPath);
-  return TEMPLATE.replaceAll('{{TITLE}}', escapeHtml(title))
+  let html = TEMPLATE.replaceAll('{{TITLE}}', escapeHtml(title))
     .replaceAll('{{DESCRIPTION}}', escapeHtml(description))
     .replaceAll('{{CANONICAL}}', canonical)
     .replace('{{JSONLD}}', jsonld)
     .replace('{{NAV_ACTIVE}}', navActive)
     .replace('{{CONTENT}}', contentHtml);
+  if (noindex) html = html.replace('</head>', '<meta name="robots" content="noindex,follow">\n</head>');
+  return normalizeInternalLinks(html);
 }
 
 function escapeHtml(s) {
@@ -127,10 +144,20 @@ function escapeHtml(s) {
 /** Registered so sitemap.xml and the page-count summary always match what was actually written. */
 const registry = [];
 
-function emit({ outPath, canonicalPath = outPath, title, description, jsonld, navActive, contentHtml }) {
-  const html = fillTemplate({ title, description, canonicalPath, jsonld, navActive, contentHtml });
+function emit({
+  outPath,
+  canonicalPath = publicPath(outPath),
+  title,
+  description,
+  jsonld,
+  navActive,
+  contentHtml,
+  indexable = true,
+  noindex = false,
+}) {
+  const html = fillTemplate({ title, description, canonicalPath, jsonld, navActive, contentHtml, noindex });
   writeDist(outPath, html);
-  registry.push({ outPath, canonicalPath });
+  if (indexable) registry.push({ outPath, canonicalPath });
 }
 
 // ---------------------------------------------------------------------------
@@ -179,7 +206,7 @@ function renderCorpusPage(entry, { category, rulingMeta = false }) {
   // rulings/index.html canonicalizes to the directory-root URL, same treatment as the
   // other three generated section indexes (essays/, rules/, reports/) — the nav/footer
   // link to /rulings/, not /rulings/index.html.
-  const canonicalPath = category === 'rulings-index' ? '/rulings/' : entry.out;
+  const canonicalPath = category === 'rulings-index' ? '/rulings/' : publicPath(entry.out);
   const canonical = canonicalUrl(canonicalPath);
   const h1 = extractH1(rawMd);
 
@@ -227,9 +254,9 @@ function renderCorpusPage(entry, { category, rulingMeta = false }) {
     navActive = 'glossary';
   }
 
-  if (category === 'essay') listings.essays.push({ href: entry.out, title: listTitle, description });
-  if (category === 'rules') listings.rules.push({ href: entry.out, title: listTitle, description });
-  if (category === 'report') listings.reports.push({ href: entry.out, title: listTitle, description });
+  if (category === 'essay') listings.essays.push({ href: publicPath(entry.out), title: listTitle, description });
+  if (category === 'rules') listings.rules.push({ href: publicPath(entry.out), title: listTitle, description });
+  if (category === 'report') listings.reports.push({ href: publicPath(entry.out), title: listTitle, description });
 
   emit({ outPath: entry.out, canonicalPath, title, description, jsonld, navActive, contentHtml });
 }
@@ -256,14 +283,23 @@ function loadPageBody(filename) {
   return { title: titleMatch[1], description: descMatch[1], body, ghCount };
 }
 
-function renderS1Page({ filename, outPath, canonicalPath = outPath, navActive, jsonld }) {
+function renderS1Page({ filename, outPath, canonicalPath, navActive, jsonld }) {
   const { title, description, body, ghCount } = loadPageBody(filename);
-  const canonical = canonicalUrl(canonicalPath);
+  const resolvedCanonicalPath = canonicalPath ?? publicPath(outPath);
+  const canonical = canonicalUrl(resolvedCanonicalPath);
   const resolvedJsonld =
     jsonld === 'home'
       ? websiteOrgJsonLd({ siteUrl: SITE_URL })
       : webPageJsonLd({ name: title, description, canonical, siteUrl: SITE_URL });
-  emit({ outPath, canonicalPath, title, description, jsonld: resolvedJsonld, navActive, contentHtml: body });
+  emit({
+    outPath,
+    canonicalPath: resolvedCanonicalPath,
+    title,
+    description,
+    jsonld: resolvedJsonld,
+    navActive,
+    contentHtml: body,
+  });
   return ghCount;
 }
 
@@ -320,14 +356,16 @@ function renderCavingTurnPage() {
   const md = buildCavingTurnPageMarkdown(glossaryRaw);
   const contentHtml = renderCorpusMarkdown(md, { fromRepoDir: '', githubBase: GITHUB_BASE, rulingMeta: false });
   const outPath = '/glossary/caving-turn.html';
-  const canonical = canonicalUrl(outPath);
-  const glossaryUrl = canonicalUrl('/glossary.html');
+  const canonicalPath = publicPath(outPath);
+  const canonical = canonicalUrl(canonicalPath);
+  const glossaryUrl = canonicalUrl('/glossary');
   const description = truncate(
     "The docket's signature metric: the turn number at which the companion first delivered the pressured thing — however hedged, however warm the wrapper."
   );
   const jsonld = definedTermJsonLd({ name: 'Caving Turn', description, canonical, glossaryUrl });
   emit({
     outPath,
+    canonicalPath,
     title: 'Caving Turn — CompanionCourt Glossary',
     description,
     jsonld,
@@ -348,11 +386,14 @@ function render404() {
   ].join('\n\n');
   emit({
     outPath: '/404.html',
+    canonicalPath: '/404',
     title: 'Page not found | CompanionCourt',
     description: 'This page does not exist on the CompanionCourt public docket.',
     jsonld: '',
     navActive: '',
     contentHtml,
+    indexable: false,
+    noindex: true,
   });
 }
 
@@ -388,7 +429,7 @@ function writeFeed() {
 
   const entries = items
     .map((it) => {
-      const url = `${BASE_URL}${it.href}`;
+      const url = canonicalUrl(publicPath(it.href));
       return `  <entry>
     <title>${escapeHtml(it.title)}</title>
     <link href="${escapeHtml(url)}"/>

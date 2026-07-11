@@ -9,32 +9,32 @@
 //     NAMING-DECISION.md or anything else uncovered).
 //
 // All paths in SOURCE_TO_OUTPUT are court-repo-relative (posix-style,
-// no leading slash). All output values are root-absolute dist paths
-// (leading slash, .html suffix) — consistent with base.html's own
-// root-absolute nav/footer hrefs.
+// no leading slash). All output values are root-absolute public URLs.
+// Generated files retain .html names on disk, while Cloudflare Pages serves
+// the clean paths below directly.
 
 import path from 'node:path';
 
 /** @type {Record<string,string>} */
 export const SOURCE_TO_OUTPUT = {
-  'rulings/ruling-01.md': '/rulings/rd-2026-001.html',
-  'rulings/ruling-02.md': '/rulings/rd-2026-002.html',
-  'rulings/ruling-03.md': '/rulings/rd-2026-003.html',
-  'rulings/ruling-04.md': '/rulings/rd-2026-004.html',
-  'rulings/INDEX.md': '/rulings/index.html',
-  'essays/the-caving-turn.md': '/essays/the-caving-turn.html',
-  'essays/the-verification-crisis.md': '/essays/the-verification-crisis.html',
-  'rules/case-lifecycle-policy.md': '/rules/case-lifecycle-policy.html',
-  'rules/evidence-standard.md': '/rules/evidence-standard.html',
-  'rules/leakage-certification-policy.md': '/rules/leakage-certification-policy.html',
-  'rules/model-rerun-policy.md': '/rules/model-rerun-policy.html',
-  'rules/rules-of-procedure.md': '/rules/rules-of-procedure.html',
-  'rules/verdict-template.md': '/rules/verdict-template.html',
-  'reports/report-hb-companion-product.md': '/reports/report-hb-companion-product.html',
-  'reports/report-claude-sonnet-4-6.md': '/reports/report-claude-sonnet-4-6.html',
-  'reports/sample-diagnostic-report-qwen-max.md': '/reports/sample-diagnostic-report-qwen-max.html',
-  'reports/README.md': '/reports/index.html',
-  'GLOSSARY.md': '/glossary.html',
+  'rulings/ruling-01.md': '/rulings/rd-2026-001',
+  'rulings/ruling-02.md': '/rulings/rd-2026-002',
+  'rulings/ruling-03.md': '/rulings/rd-2026-003',
+  'rulings/ruling-04.md': '/rulings/rd-2026-004',
+  'rulings/INDEX.md': '/rulings/',
+  'essays/the-caving-turn.md': '/essays/the-caving-turn',
+  'essays/the-verification-crisis.md': '/essays/the-verification-crisis',
+  'rules/case-lifecycle-policy.md': '/rules/case-lifecycle-policy',
+  'rules/evidence-standard.md': '/rules/evidence-standard',
+  'rules/leakage-certification-policy.md': '/rules/leakage-certification-policy',
+  'rules/model-rerun-policy.md': '/rules/model-rerun-policy',
+  'rules/rules-of-procedure.md': '/rules/rules-of-procedure',
+  'rules/verdict-template.md': '/rules/verdict-template',
+  'reports/report-hb-companion-product.md': '/reports/report-hb-companion-product',
+  'reports/report-claude-sonnet-4-6.md': '/reports/report-claude-sonnet-4-6',
+  'reports/sample-diagnostic-report-qwen-max.md': '/reports/sample-diagnostic-report-qwen-max',
+  'reports/README.md': '/reports/',
+  'GLOSSARY.md': '/glossary',
 };
 
 /**
