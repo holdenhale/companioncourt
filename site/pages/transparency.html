@@ -1,43 +1,34 @@
-<!-- TITLE: Transparency — where CompanionCourt's own product stands -->
-<!-- DESC: Our own companion is the first respondent we put on trial, and it did not pass. The honest ledger: NOT-YET, the survival record starting at zero, judge-family bias, and the known gaps. -->
+<!-- TITLE: Transparency — CompanionCourt evidence ledger -->
+<!-- DESC: The current integrity status, exposure record, judge-family bias, instrumentation gaps, privacy posture, and claim boundary for CompanionCourt. -->
 
-<h1>Transparency — our own standing, in the open</h1>
+<section class="subpage-hero transparency-hero section-wide" data-reveal>
+  <p class="eyebrow">Evidence ledger · 11 July 2026 snapshot</p>
+  <h1 class="display">Trust starts<br>with the loss.</h1>
+  <p class="subpage-lede">Our own frozen companion runtime is the first respondent we ruled against. The record is public before the product asks anyone to trust it.</p>
+</section>
 
-<p class="lede">A court whose builders also ship a product only means something if the product does not get a pass. Ours goes in the docket like everyone else, with its not-yet-passing findings shown, not buried. This page is where the hard detail lives.</p>
+<section class="integrity-state section-wide" data-reveal>
+  <div><span class="status status-red">Integrity Gate RED</span><h2>Our own product: NOT-YET</h2><p>The <code>caving_signature</code> veto fired with dual-family confirmation on three must-hold cases. Architecture narrowed some failures, but it did not reliably hold the line.</p></div>
+  <a class="button button-secondary" href="/rulings/rd-2026-004">Read RD-2026-004 <img class="icon" src="/assets/icons/arrow-right.svg" alt=""></a>
+</section>
 
-<h2>Our own product on trial: NOT-YET</h2>
+<section class="ledger-grid section-wide" aria-label="Transparency ledger">
+  <article data-reveal><p class="ledger-value">0</p><h2>Qualified appeals at launch snapshot</h2><p>Zero appeals against low exposure is zero evidence, not proof that a ruling survived. Exposure and appeal counts must accumulate together after publication.</p></article>
+  <article data-reveal><p class="ledger-value">+0.171</p><h2>Measured kin preference</h2><p>Judge family A showed a one-sided same-family preference concentrated in English. Pro-respondent dimension scores may carry residual lift; vetoes in the published cases run against that bias.</p></article>
+  <article data-reveal><p class="ledger-value">2</p><h2>Known manifest gaps</h2><p>Provider observation covers only the respondent’s first response, and effective-request retry adjustments are not yet written into the manifest. Both remain disclosed blocking fixes.</p></article>
+  <article data-reveal><p class="ledger-value">0</p><h2>Client trackers</h2><p>No cookies, analytics, or third-party requests. Any exposure count comes from aggregate, bot-filtered hosting-layer request totals—not individual visitor tracking.</p></article>
+</section>
 
-<p>The first respondent we put on trial here is our own companion — the <code>hb-companion-product</code> stack (a planning Brain plus ClaimGraph memory), run as a respondent through our own bench. The verdict is <a href="/rulings/rd-2026-004.html">RD-2026-004</a>, and it is a <strong>NOT-YET</strong>.</p>
+<section class="split-feature section-wide" aria-labelledby="privacy-title">
+  <div class="section-heading" data-reveal><p class="eyebrow">Data boundary</p><h2 class="display" id="privacy-title">The public docket is synthetic.</h2></div>
+  <div class="feature-grid">
+    <article data-reveal><img class="panel-icon" src="/assets/icons/lock-keyhole.svg" alt=""><h3>No real user chats</h3><p>Public cases use scripted synthetic personas. Real alpha conversations do not become public case files.</p></article>
+    <article data-reveal><img class="panel-icon" src="/assets/icons/eye.svg" alt=""><h3>Inspectable, not infallible</h3><p>Rulings are publicly contestable. They are not described as human-validated, certified, or an overall model ranking.</p></article>
+  </div>
+</section>
 
-<p class="callout accent">The <strong>Integrity Gate is <span class="verdict-red">RED</span></strong>. The <code>caving_signature</code> veto fired, dual-family confirmed, on three must-hold cases — <code>cb-01</code> (jealousy bait), <code>cb-02-zh</code> (the midnight essay), and <code>cb-03</code> (the closed door). Wrapping the base weights in the Brain + ClaimGraph architecture is a real but mixed improvement over the bare model — it narrows caving exposure and holds materially longer before it breaks, and on <code>cb-03</code> it even regressed — but the must-hold floor is not reliably passed. Architecture that narrows a failure is not architecture that holds the line, and we say so about ourselves first.</p>
-
-<p>This is why the companion is in a small, invite-only alpha, not a growth launch: a must-hold case caved, and that reasoning is a feature to show, not a fact to bury. Read the full ruling and the complete evidence — per-case tables and every blinded transcript — in <a href="/rulings/rd-2026-004.html">RD-2026-004</a> and its <a href="/reports/">diagnostic report</a>.</p>
-
-<h2>The survival record starts at zero</h2>
-
-<p>&ldquo;Survived&rdquo; is not a claim we get to make for free. We publish appeal counts alongside exposure — how many times the docket was viewed, rerun, and cited, and how many qualified appeals arrived — next to the overturn rate.</p>
-
-<p class="callout"><strong>Zero appeals against low exposure is zero evidence, not a verdict that survived.</strong> The survival record is post-launch evidence; on launch day it starts at zero, and it says so. A ruling on launch day is <em>publicly contestable</em>, never <em>validated</em>.</p>
-
-<h2>How we count exposure — without tracking you</h2>
-
-<p>This site sets no cookies, runs no analytics, and makes no third-party requests. We do not watch visitors to produce our exposure numbers. Docket-exposure counts are <strong>aggregate, server-side request counts at the hosting layer</strong> (Cloudflare Pages per-URL counts, bot-filtered) — no cookies, no client scripts, no individual identification. The other denominators — external reproductions, citations, and qualified appeals — come from public work that reruns or cites the cases, and from the appeal record itself. The denominator is published next to the count so a small number is read honestly, and it accrues in the open through each <a href="/rules/rules-of-procedure.html">Docket Update</a>.</p>
-
-<h2>Judge family-bias, disclosed</h2>
-
-<p>One of the court&rsquo;s four evidence gates is a measured, published bias for each judge family toward its own lineage&rsquo;s outputs. We disclose it: judge family A (<code>claude-sonnet-4-6</code>) shows a one-sided <strong>+0.171 kin preference</strong> for same-family outputs, concentrated in English. Where a respondent is itself claude-family — as the respondent in <a href="/rulings/rd-2026-001.html">RD-2026-001</a>/002 (<code>claude-sonnet-4-6</code>) is — its pro-respondent dimension scores may carry residual kin lift and are recorded as context, not findings — and in our own NOT-YET the bias runs the <em>other</em> way, since kin lift would push toward a pass, not the RED. The full disclosure and its pointer live in <a href="/rulings/rd-2026-004.html">RD-2026-004</a> and <a href="/rulings/rd-2026-001.html">RD-2026-001</a>.</p>
-
-<h2>Known limits of the record</h2>
-
-<p>Two manifest gaps are disclosed, not hidden behind the reproducibility sentence — both published as blocking fixes (see <a href="/rules/evidence-standard.html">Evidence standard §6</a>):</p>
-
-<ul>
-  <li>Provider observation currently captures only the respondent&rsquo;s first response; anchor, persona, and judge observation are pending.</li>
-  <li>The adapter&rsquo;s effective-request adjustments — for example, a gateway stripping <code>temperature</code> on retry — are not yet recorded in the manifest.</li>
-</ul>
-
-<p>And the sentence itself, which we do not walk back: <em>&ldquo;We make the record reproducible and the ruling auditable; we do not claim byte-identical reruns across model gateways.&rdquo;</em> Rendering a report from the same run files is deterministic and byte-identical; re-sampling a model through a gateway is not, and we never claim otherwise.</p>
-
-<h2>Alpha data handling</h2>
-
-<p>The companion&rsquo;s alpha results enter an internal docket only. User data is aggregated or explicitly consented, and nothing a real user says ever becomes a public case file — every persona in the public docket is synthetic, built from recognizable human moments, never a real person.</p>
+<section class="closing-cta section-wide" data-reveal>
+  <p class="eyebrow">Follow the evidence</p>
+  <h2 class="display">Claim → ruling → transcript.</h2>
+  <a class="button button-primary" href="/reports/">Open the evidence library <img class="icon" src="/assets/icons/arrow-right.svg" alt=""></a>
+</section>

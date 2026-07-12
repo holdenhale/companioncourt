@@ -22,6 +22,8 @@ import { fileURLToPath } from 'node:url';
 import { renderCorpusMarkdown } from './lib/markdown.mjs';
 import { buildCavingTurnPageMarkdown } from './lib/glossaryTerm.mjs';
 import { auditDist, formatAuditReport } from './lib/audit.mjs';
+import { buildGlossaryMarkdown, splitTrailingZhSummary } from './lib/bilingual.mjs';
+import { localeCopy, shellFor } from './lib/i18n.mjs';
 import {
   extractH1,
   extractFirstProse,
@@ -63,6 +65,8 @@ const SITE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_DIR = path.resolve(SITE_DIR, '..');
 const DIST_DIR = path.join(SITE_DIR, 'dist');
 const STYLES_SRC_DIR = path.join(SITE_DIR, 'styles');
+const ASSETS_SRC_DIR = path.join(SITE_DIR, 'assets');
+const SCRIPTS_SRC_DIR = path.join(SITE_DIR, 'scripts');
 
 // Overridable so this script can be exercised against a scratchpad stub
 // before track S1's template/pages exist — never against a path under S1's
@@ -125,13 +129,57 @@ function canonicalUrl(canonicalPath) {
   return canonicalPath === '/' ? SITE_URL : `${BASE_URL}${canonicalPath}`;
 }
 
-function fillTemplate({ title, description, canonicalPath, jsonld, navActive, contentHtml, noindex = false }) {
+function defaultAlternatePath(locale, canonicalPath) {
+  if (locale === 'zh') {
+    if (canonicalPath === '/zh/') return '/';
+    return canonicalPath.replace(/^\/zh/, '') || '/';
+  }
+  if (canonicalPath === '/') return '/zh/';
+  if (canonicalPath === '/essays/the-caving-turn') return '/zh/glossary/caving-turn';
+  if (/^\/(?:method|submit|transparency|about|glossary)(?:\/|$)/.test(canonicalPath)) return `/zh${canonicalPath}`;
+  if (/^\/(?:rulings|rules|essays)\//.test(canonicalPath)) return `/zh${canonicalPath}`;
+  return '/zh/';
+}
+
+function alternateLinks({ locale, canonicalPath, alternatePath }) {
+  const enPath = locale === 'en' ? canonicalPath : alternatePath;
+  const zhPath = locale === 'zh' ? canonicalPath : alternatePath;
+  return [
+    `<link rel="alternate" hreflang="en" href="${canonicalUrl(enPath)}">`,
+    `<link rel="alternate" hreflang="zh-Hans" href="${canonicalUrl(zhPath)}">`,
+    `<link rel="alternate" hreflang="x-default" href="${canonicalUrl(enPath)}">`,
+  ].join('\n');
+}
+
+function fillTemplate({
+  title,
+  description,
+  canonicalPath,
+  jsonld,
+  navActive,
+  contentHtml,
+  locale = 'en',
+  pageClass = 'record',
+  contentClass = 'prose',
+  alternatePath = defaultAlternatePath(locale, canonicalPath),
+  noindex = false,
+}) {
   const canonical = canonicalUrl(canonicalPath);
+  const shell = shellFor({ locale, alternatePath });
   let html = TEMPLATE.replaceAll('{{TITLE}}', escapeHtml(title))
     .replaceAll('{{DESCRIPTION}}', escapeHtml(description))
     .replaceAll('{{CANONICAL}}', canonical)
+    .replace('{{ALTERNATES}}', alternateLinks({ locale, canonicalPath, alternatePath }))
+    .replaceAll('{{LANG}}', shell.lang)
+    .replaceAll('{{OG_LOCALE}}', shell.ogLocale)
+    .replaceAll('{{OG_IMAGE_ALT}}', escapeHtml(shell.ogImageAlt))
     .replace('{{JSONLD}}', jsonld)
     .replace('{{NAV_ACTIVE}}', navActive)
+    .replace('{{PAGE_CLASS}}', pageClass)
+    .replace('{{CONTENT_CLASS}}', contentClass)
+    .replace('{{SKIP_LABEL}}', shell.skipLabel)
+    .replace('{{HEADER}}', shell.header)
+    .replace('{{FOOTER}}', shell.footer)
     .replace('{{CONTENT}}', contentHtml);
   if (noindex) html = html.replace('</head>', '<meta name="robots" content="noindex,follow">\n</head>');
   return normalizeInternalLinks(html);
@@ -154,10 +202,26 @@ function emit({
   contentHtml,
   indexable = true,
   noindex = false,
+  locale = 'en',
+  pageClass = 'record',
+  contentClass = 'prose',
+  alternatePath,
 }) {
-  const html = fillTemplate({ title, description, canonicalPath, jsonld, navActive, contentHtml, noindex });
+  const html = fillTemplate({
+    title,
+    description,
+    canonicalPath,
+    jsonld,
+    navActive,
+    contentHtml,
+    locale,
+    pageClass,
+    contentClass,
+    alternatePath,
+    noindex,
+  });
   writeDist(outPath, html);
-  if (indexable) registry.push({ outPath, canonicalPath });
+  if (indexable) registry.push({ outPath, canonicalPath, locale });
 }
 
 // ---------------------------------------------------------------------------
@@ -201,8 +265,13 @@ const listings = { essays: [], rules: [], reports: [] };
 
 function renderCorpusPage(entry, { category, rulingMeta = false }) {
   const rawMd = readRepo(entry.src);
+  const renderMd = category === 'rules' || entry.src === 'essays/the-verification-crisis.md'
+    ? splitTrailingZhSummary(rawMd).english
+    : category === 'glossary'
+      ? buildGlossaryMarkdown(rawMd, 'en')
+      : rawMd;
   const fromRepoDir = repoDirOf(entry.src);
-  const contentHtml = renderCorpusMarkdown(rawMd, { fromRepoDir, githubBase: GITHUB_BASE, rulingMeta });
+  let contentHtml = renderCorpusMarkdown(renderMd, { fromRepoDir, githubBase: GITHUB_BASE, rulingMeta });
   // rulings/index.html canonicalizes to the directory-root URL, same treatment as the
   // other three generated section indexes (essays/, rules/, reports/) — the nav/footer
   // link to /rulings/, not /rulings/index.html.
@@ -214,21 +283,27 @@ function renderCorpusPage(entry, { category, rulingMeta = false }) {
 
   if (category === 'ruling') {
     const { id, caseName, description: d } = extractRulingMeta(rawMd);
+    const caseKey = rawMd.match(/^# Ruling RD-2026-\d+ — .+? \((.+)\)$/m)?.[1] ?? '';
     title = `${id} — ${caseName} | CompanionCourt`;
     description = d;
-    jsonld = articleJsonLd({ headline: `${id} — ${caseName}`, canonical, siteUrl: SITE_URL });
+    jsonld = articleJsonLd({ headline: `${id} — ${caseName}`, canonical, siteUrl: SITE_URL, inLanguage: 'en' });
     navActive = 'rulings';
     listTitle = `${id} — ${caseName}`;
+    contentHtml = contentHtml.replace(
+      /<h1>[\s\S]*?<\/h1>/,
+      `<header class="record-title"><span>${escapeHtml(id)} · PUBLIC RULING</span><h1>${escapeHtml(caseName)}</h1><p>${escapeHtml(caseKey)}</p></header>`
+    );
+    contentHtml = `<div class="record-actions"><span>PUBLIC RULING · CASE-SCOPED</span><a href="#transcript-excerpt">Jump to the transcript <img class="icon" src="/assets/icons/arrow-right.svg" alt=""></a></div>\n${contentHtml}`;
   } else if (category === 'essay') {
     title = titleWithSuffix(h1);
     description = truncate(firstSentence(extractFirstProse(rawMd)));
-    jsonld = articleJsonLd({ headline: h1, canonical, siteUrl: SITE_URL });
+    jsonld = articleJsonLd({ headline: h1, canonical, siteUrl: SITE_URL, inLanguage: 'en' });
     navActive = 'essays';
     listTitle = h1;
   } else if (category === 'rules') {
     title = titleWithSuffix(h1);
     description = extractRulesMeta(rawMd);
-    jsonld = webPageJsonLd({ name: h1, description, canonical, siteUrl: SITE_URL });
+    jsonld = webPageJsonLd({ name: h1, description, canonical, siteUrl: SITE_URL, inLanguage: 'en' });
     navActive = 'rules';
     listTitle = h1;
   } else if (category === 'report') {
@@ -237,20 +312,20 @@ function renderCorpusPage(entry, { category, rulingMeta = false }) {
     description = truncate(
       `Diagnostic report — ${respondent}: per-case verdicts, the Integrity Gate, and the full blinded transcripts appendix. CompanionCourt public docket.`
     );
-    jsonld = articleJsonLd({ headline: h1, canonical, siteUrl: SITE_URL });
+    jsonld = articleJsonLd({ headline: h1, canonical, siteUrl: SITE_URL, inLanguage: 'en' });
     navActive = 'evidence';
     listTitle = h1;
   } else if (category === 'rulings-index') {
     title = titleWithSuffix(h1);
     description = truncate(firstSentence(extractFirstProse(rawMd)));
-    jsonld = webPageJsonLd({ name: h1, description, canonical, siteUrl: SITE_URL });
+    jsonld = webPageJsonLd({ name: h1, description, canonical, siteUrl: SITE_URL, inLanguage: 'en' });
     navActive = 'rulings';
   } else if (category === 'glossary') {
     title = titleWithSuffix(h1);
     description = truncate(
       "Doctrine vocabulary for the CompanionCourt docket, bilingual (EN/ZH): Caving Turn, Mirror Gap, Caving Signature, Warm Judgment, Integrity Gate, DISPUTED, Anchored Dyad, and the seventeen public case names."
     );
-    jsonld = webPageJsonLd({ name: h1, description, canonical, siteUrl: SITE_URL });
+    jsonld = webPageJsonLd({ name: h1, description, canonical, siteUrl: SITE_URL, inLanguage: 'en' });
     navActive = 'glossary';
   }
 
@@ -258,7 +333,17 @@ function renderCorpusPage(entry, { category, rulingMeta = false }) {
   if (category === 'rules') listings.rules.push({ href: publicPath(entry.out), title: listTitle, description });
   if (category === 'report') listings.reports.push({ href: publicPath(entry.out), title: listTitle, description });
 
-  emit({ outPath: entry.out, canonicalPath, title, description, jsonld, navActive, contentHtml });
+  emit({
+    outPath: entry.out,
+    canonicalPath,
+    title,
+    description,
+    jsonld,
+    navActive,
+    contentHtml,
+    pageClass: category === 'ruling' ? 'record ruling-page' : `record ${category}-page`,
+    contentClass: 'prose record-prose',
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -283,14 +368,25 @@ function loadPageBody(filename) {
   return { title: titleMatch[1], description: descMatch[1], body, ghCount };
 }
 
-function renderS1Page({ filename, outPath, canonicalPath, navActive, jsonld }) {
+function renderS1Page({
+  filename,
+  outPath,
+  canonicalPath,
+  navActive,
+  jsonld,
+  locale = 'en',
+  pageClass = 'landing',
+  contentClass = 'landing-shell',
+  alternatePath,
+}) {
   const { title, description, body, ghCount } = loadPageBody(filename);
   const resolvedCanonicalPath = canonicalPath ?? publicPath(outPath);
   const canonical = canonicalUrl(resolvedCanonicalPath);
+  const language = locale === 'zh' ? 'zh-Hans' : 'en';
   const resolvedJsonld =
     jsonld === 'home'
-      ? websiteOrgJsonLd({ siteUrl: SITE_URL })
-      : webPageJsonLd({ name: title, description, canonical, siteUrl: SITE_URL });
+      ? websiteOrgJsonLd({ siteUrl: SITE_URL, inLanguage: language })
+      : webPageJsonLd({ name: title, description, canonical, siteUrl: SITE_URL, inLanguage: language });
   emit({
     outPath,
     canonicalPath: resolvedCanonicalPath,
@@ -299,6 +395,10 @@ function renderS1Page({ filename, outPath, canonicalPath, navActive, jsonld }) {
     jsonld: resolvedJsonld,
     navActive,
     contentHtml: body,
+    locale,
+    pageClass,
+    contentClass,
+    alternatePath,
   });
   return ghCount;
 }
@@ -351,26 +451,115 @@ function renderReportsIndex() {
 // glossary/caving-turn.html — extracted standalone concept page
 // ---------------------------------------------------------------------------
 
-function renderCavingTurnPage() {
+function renderCavingTurnPage(locale = 'en') {
   const glossaryRaw = readRepo('GLOSSARY.md');
-  const md = buildCavingTurnPageMarkdown(glossaryRaw);
+  const md = buildCavingTurnPageMarkdown(glossaryRaw, locale);
   const contentHtml = renderCorpusMarkdown(md, { fromRepoDir: '', githubBase: GITHUB_BASE, rulingMeta: false });
-  const outPath = '/glossary/caving-turn.html';
+  const outPath = locale === 'zh' ? '/zh/glossary/caving-turn.html' : '/glossary/caving-turn.html';
   const canonicalPath = publicPath(outPath);
   const canonical = canonicalUrl(canonicalPath);
-  const glossaryUrl = canonicalUrl('/glossary');
-  const description = truncate(
-    "The docket's signature metric: the turn number at which the companion first delivered the pressured thing — however hedged, however warm the wrapper."
-  );
-  const jsonld = definedTermJsonLd({ name: 'Caving Turn', description, canonical, glossaryUrl });
+  const glossaryUrl = canonicalUrl(locale === 'zh' ? '/zh/glossary' : '/glossary');
+  const description = locale === 'zh'
+    ? '失守轮次：AI 陪伴第一次真正交付受压请求中那件事的轮次。'
+    : truncate("The docket's signature metric: the turn number at which the companion first delivered the pressured thing — however hedged, however warm the wrapper.");
+  const name = locale === 'zh' ? '失守轮次' : 'Caving Turn';
+  const jsonld = definedTermJsonLd({ name, description, canonical, glossaryUrl, inLanguage: locale === 'zh' ? 'zh-Hans' : 'en' });
   emit({
     outPath,
     canonicalPath,
-    title: 'Caving Turn — CompanionCourt Glossary',
+    title: locale === 'zh' ? '失守轮次｜CompanionCourt 词汇表' : 'Caving Turn — CompanionCourt Glossary',
     description,
     jsonld,
     navActive: 'glossary',
     contentHtml,
+    locale,
+    pageClass: 'record glossary-page',
+    contentClass: 'prose record-prose',
+  });
+}
+
+const ZH_RULE_TITLES = {
+  'case-lifecycle-policy': '案件生命周期规则',
+  'evidence-standard': '证据标准',
+  'leakage-certification-policy': '泄漏与认证边界',
+  'model-rerun-policy': '模型重跑规则',
+  'rules-of-procedure': '程序规则',
+  'verdict-template': '判决模板',
+};
+
+function renderZhMarkdownPage({ outPath, title, description, rawMd, navActive, alternatePath }) {
+  const contentHtml = renderCorpusMarkdown(rawMd, { fromRepoDir: '', githubBase: GITHUB_BASE, rulingMeta: false });
+  const canonicalPath = publicPath(outPath);
+  const canonical = canonicalUrl(canonicalPath);
+  emit({
+    outPath,
+    canonicalPath,
+    title: `${title}｜CompanionCourt`,
+    description,
+    jsonld: webPageJsonLd({ name: title, description, canonical, siteUrl: SITE_URL, inLanguage: 'zh-Hans' }),
+    navActive,
+    contentHtml,
+    locale: 'zh',
+    pageClass: 'record localized-record',
+    contentClass: 'prose record-prose',
+    alternatePath,
+  });
+}
+
+function renderZhRuleSummaries() {
+  for (const entry of RULES) {
+    const slug = path.posix.basename(entry.src, '.md');
+    const { chinese } = splitTrailingZhSummary(readRepo(entry.src));
+    if (!chinese) continue;
+    const title = ZH_RULE_TITLES[slug] ?? slug;
+    const rawMd = [
+      `# ${title}`,
+      '',
+      '> 中文页提供可读摘要；具约束力的完整版本仍以英文原文为准。',
+      '',
+      chinese,
+      '',
+      `[查看英文完整规则原文](/rules/${slug})`,
+    ].join('\n');
+    renderZhMarkdownPage({
+      outPath: `/zh/rules/${slug}.html`,
+      title,
+      description: `${title}的简体中文摘要与英文完整原文入口。`,
+      rawMd,
+      navActive: 'method',
+      alternatePath: `/rules/${slug}`,
+    });
+  }
+}
+
+function renderZhVerificationEssay() {
+  const { chinese } = splitTrailingZhSummary(readRepo('essays/the-verification-crisis.md'));
+  const rawMd = [
+    '# 验证危机',
+    '',
+    chinese,
+    '',
+    '[查看英文完整文章](/essays/the-verification-crisis)',
+  ].join('\n');
+  renderZhMarkdownPage({
+    outPath: '/zh/essays/the-verification-crisis.html',
+    title: '验证危机',
+    description: '为什么公开可挑战的证据链比不可核验的远程一致性数字更诚实。',
+    rawMd,
+    navActive: 'method',
+    alternatePath: '/essays/the-verification-crisis',
+  });
+}
+
+function renderZhGlossary() {
+  const rawMd = buildGlossaryMarkdown(readRepo('GLOSSARY.md'), 'zh');
+  renderZhMarkdownPage({
+    outPath: '/zh/glossary.html',
+    title: '词汇表',
+    description: 'CompanionCourt 公开案卷使用的简体中文概念与案例词汇。',
+    rawMd,
+    navActive: 'method',
+    alternatePath: '/glossary',
   });
 }
 
@@ -485,6 +674,8 @@ function build() {
   rmrf(DIST_DIR);
   fs.mkdirSync(DIST_DIR, { recursive: true });
   copyDir(STYLES_SRC_DIR, path.join(DIST_DIR, 'styles'));
+  copyDir(ASSETS_SRC_DIR, path.join(DIST_DIR, 'assets'));
+  copyDir(SCRIPTS_SRC_DIR, path.join(DIST_DIR, 'scripts'));
 
   // Corpus-rendered pages. Essays/rules/reports first so their listings
   // metadata is available for the generated index pages below.
@@ -515,10 +706,28 @@ function build() {
 
   // S1 hand-written pages.
   let ghSubstitutions = 0;
-  ghSubstitutions += renderS1Page({ filename: 'index.html', outPath: '/index.html', canonicalPath: '/', navActive: 'docket', jsonld: 'home' });
-  ghSubstitutions += renderS1Page({ filename: 'submit.html', outPath: '/submit.html', navActive: 'submit' });
-  ghSubstitutions += renderS1Page({ filename: 'transparency.html', outPath: '/transparency.html', navActive: 'transparency' });
-  ghSubstitutions += renderS1Page({ filename: 'about.html', outPath: '/about.html', navActive: '' });
+  ghSubstitutions += renderS1Page({ filename: 'index.html', outPath: '/index.html', canonicalPath: '/', navActive: 'docket', jsonld: 'home', pageClass: 'home landing' });
+  ghSubstitutions += renderS1Page({ filename: 'method.html', outPath: '/method.html', navActive: 'method', pageClass: 'method landing' });
+  ghSubstitutions += renderS1Page({ filename: 'submit.html', outPath: '/submit.html', navActive: 'submit', pageClass: 'submit landing' });
+  ghSubstitutions += renderS1Page({ filename: 'transparency.html', outPath: '/transparency.html', navActive: 'transparency', pageClass: 'transparency landing' });
+  ghSubstitutions += renderS1Page({ filename: 'about.html', outPath: '/about.html', navActive: '', pageClass: 'about landing' });
+
+  // Simplified Chinese discovery layer. Source-language evidence stays verbatim and clearly labelled.
+  ghSubstitutions += renderS1Page({ filename: 'zh/index.html', outPath: '/zh/index.html', canonicalPath: '/zh/', navActive: 'docket', jsonld: 'home', locale: 'zh', pageClass: 'home landing', alternatePath: '/' });
+  ghSubstitutions += renderS1Page({ filename: 'zh/method.html', outPath: '/zh/method.html', navActive: 'method', locale: 'zh', pageClass: 'method landing', alternatePath: '/method' });
+  ghSubstitutions += renderS1Page({ filename: 'zh/submit.html', outPath: '/zh/submit.html', navActive: 'submit', locale: 'zh', pageClass: 'submit landing', alternatePath: '/submit' });
+  ghSubstitutions += renderS1Page({ filename: 'zh/transparency.html', outPath: '/zh/transparency.html', navActive: 'transparency', locale: 'zh', pageClass: 'transparency landing', alternatePath: '/transparency' });
+  ghSubstitutions += renderS1Page({ filename: 'zh/about.html', outPath: '/zh/about.html', navActive: '', locale: 'zh', pageClass: 'about landing', alternatePath: '/about' });
+  ghSubstitutions += renderS1Page({ filename: 'zh/rulings/index.html', outPath: '/zh/rulings/index.html', navActive: 'rulings', locale: 'zh', pageClass: 'rulings landing', alternatePath: '/rulings/' });
+  for (const id of ['001', '002', '003', '004']) {
+    ghSubstitutions += renderS1Page({ filename: `zh/rulings/rd-2026-${id}.html`, outPath: `/zh/rulings/rd-2026-${id}.html`, navActive: 'rulings', locale: 'zh', pageClass: 'ruling-summary landing', alternatePath: `/rulings/rd-2026-${id}` });
+  }
+  ghSubstitutions += renderS1Page({ filename: 'zh/rules/index.html', outPath: '/zh/rules/index.html', navActive: 'method', locale: 'zh', pageClass: 'library landing', alternatePath: '/rules/' });
+  ghSubstitutions += renderS1Page({ filename: 'zh/essays/index.html', outPath: '/zh/essays/index.html', navActive: 'method', locale: 'zh', pageClass: 'library landing', alternatePath: '/essays/' });
+  renderZhRuleSummaries();
+  renderZhVerificationEssay();
+  renderZhGlossary();
+  renderCavingTurnPage('zh');
 
   render404();
 

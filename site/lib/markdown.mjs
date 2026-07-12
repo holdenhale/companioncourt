@@ -97,6 +97,7 @@ function textOf(html) {
  */
 export function postprocessHtml(html) {
   let out = html;
+  const usedHeadingIds = new Set();
 
   // Public-record blockquote.
   out = out.replace(
@@ -130,6 +131,23 @@ export function postprocessHtml(html) {
   // there without backticks) — so any autolinked mailto is by construction a false
   // positive here. De-linkify without touching the visible text.
   out = out.replace(/<a href="mailto:[^"]*">([^<]*)<\/a>/g, '$1');
+
+  // Stable heading anchors make long evidence records directly navigable.
+  out = out.replace(/<h([2-3])>([\s\S]*?)<\/h\1>/g, (whole, level, inner) => {
+    const visible = textOf(inner).trim();
+    let slug = visible
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-');
+    if (!slug) return whole;
+    if (slug.startsWith('transcript-excerpt')) slug = 'transcript-excerpt';
+    const base = slug;
+    let suffix = 2;
+    while (usedHeadingIds.has(slug)) slug = `${base}-${suffix++}`;
+    usedHeadingIds.add(slug);
+    return `<h${level} id="${slug}">${inner}</h${level}>`;
+  });
 
   return out;
 }

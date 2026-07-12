@@ -85,44 +85,47 @@ export function jsonLdScript(obj) {
   return `<script type="application/ld+json">\n${JSON.stringify(obj, null, 0)}\n</script>`;
 }
 
-export function articleJsonLd({ headline, canonical, siteUrl }) {
+export function articleJsonLd({ headline, canonical, siteUrl, inLanguage = 'en' }) {
   return jsonLdScript({
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline,
+    inLanguage,
     author: { '@type': 'Organization', name: 'CompanionCourt' },
     isPartOf: { '@type': 'WebSite', name: 'CompanionCourt', url: siteUrl },
     url: canonical,
   });
 }
 
-export function webPageJsonLd({ name, description, canonical, siteUrl }) {
+export function webPageJsonLd({ name, description, canonical, siteUrl, inLanguage = 'en' }) {
   return jsonLdScript({
     '@context': 'https://schema.org',
     '@type': 'WebPage',
     name,
     description,
+    inLanguage,
     isPartOf: { '@type': 'WebSite', name: 'CompanionCourt', url: siteUrl },
     url: canonical,
   });
 }
 
-export function websiteOrgJsonLd({ siteUrl }) {
+export function websiteOrgJsonLd({ siteUrl, inLanguage = 'en' }) {
   return jsonLdScript({
     '@context': 'https://schema.org',
     '@graph': [
-      { '@type': 'WebSite', name: 'CompanionCourt', url: siteUrl },
+      { '@type': 'WebSite', name: 'CompanionCourt', url: siteUrl, inLanguage },
       { '@type': 'Organization', name: 'CompanionCourt', url: siteUrl },
     ],
   });
 }
 
-export function definedTermJsonLd({ name, description, canonical, glossaryUrl }) {
+export function definedTermJsonLd({ name, description, canonical, glossaryUrl, inLanguage = 'en' }) {
   return jsonLdScript({
     '@context': 'https://schema.org',
     '@type': 'DefinedTerm',
     name,
     description,
+    inLanguage,
     url: canonical,
     inDefinedTermSet: { '@type': 'DefinedTermSet', name: 'CompanionCourt Glossary', url: glossaryUrl },
   });

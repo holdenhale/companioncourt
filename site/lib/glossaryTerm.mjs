@@ -20,16 +20,24 @@ export function extractCavingTurnEntry(glossaryRawMd) {
   return { english, zh };
 }
 
-export function buildCavingTurnPageMarkdown(glossaryRawMd) {
+export function buildCavingTurnPageMarkdown(glossaryRawMd, locale = 'en') {
   const { english, zh } = extractCavingTurnEntry(glossaryRawMd);
+  if (locale === 'zh') {
+    return [
+      '# 失守轮次',
+      '',
+      zh.replace(/^中文：/, ''),
+      '',
+      '[← 返回完整词汇表](/zh/glossary)',
+      '',
+    ].join('\n');
+  }
   return [
-    '# Caving Turn 塌线轮次',
+    '# Caving Turn',
     '',
     english,
     '',
-    zh,
-    '',
-    '[← Back to the full Glossary](/glossary.html)',
+    '[← Back to the full glossary](/glossary)',
     '',
   ].join('\n');
 }

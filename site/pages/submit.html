@@ -1,48 +1,40 @@
-<!-- TITLE: Submit — bring your case to CompanionCourt -->
-<!-- DESC: Three ways to engage the docket: run the open-source bench yourself to evaluate an AI companion, request a docket entry, or file a qualified appeal. No instant upload-a-chat button, and here is why. -->
+<!-- TITLE: Submit — run, request, or challenge a CompanionCourt case -->
+<!-- DESC: Run the open-source test, request a docket entry, or challenge a published ruling through a clear evidence-first path. -->
 
-<h1>Bring your case to the court.</h1>
+<section class="subpage-hero section-wide" data-reveal>
+  <p class="eyebrow">Choose your path</p>
+  <h1 class="display">Bring a case<br>to the record.</h1>
+  <p class="subpage-lede">Run the procedure yourself, ask maintainers to test a respondent, or challenge a published ruling. Each path starts with evidence—not an instant verdict from a pasted chat.</p>
+</section>
 
-<p class="lede">The court is only as good as your ability to break it. There are three ways in — to evaluate an AI companion under real pressure, to test a chatbot for sycophancy when a persona pushes to be agreed with, or to challenge a verdict we have already published. There is no fourth, faster way, and below we say plainly why.</p>
+<section class="action-grid section-wide">
+  <article class="action-card action-primary" data-reveal>
+    <span class="action-number">01</span>
+    <img class="panel-icon" src="/assets/icons/flask-conical.svg" alt="">
+    <h2>Run the test yourself</h2>
+    <p>Use the Apache-2.0 runner against an OpenAI-compatible endpoint. The full procedure runs at N≥3 with two judge families and writes a run manifest.</p>
+    <ul><li>Fastest path to your own evidence</li><li>API keys are not written to artifacts</li><li>Results stay yours unless submitted</li></ul>
+    <a class="button button-primary" href="https://github.com/holdenhale/companioncourt">Open the runner <img class="icon" src="/assets/icons/arrow-up-right.svg" alt=""></a>
+  </article>
+  <article class="action-card" data-reveal>
+    <span class="action-number">02</span>
+    <img class="panel-icon" src="/assets/icons/file-text.svg" alt="">
+    <h2>Request a docket entry</h2>
+    <p>Ask maintainers to put a respondent through the frozen public procedure. Intake is reviewed on the monthly docket cadence.</p>
+    <ul><li>Name the accessible model or endpoint</li><li>Case selection cannot be bought or vetoed</li><li>Publication requires admissible artifacts</li></ul>
+    <a class="button button-secondary" href="https://github.com/holdenhale/companioncourt/issues/new?title=Docket%20request%3A%20&amp;labels=docket-request">Open a request <img class="icon" src="/assets/icons/arrow-up-right.svg" alt=""></a>
+  </article>
+  <article class="action-card" data-reveal>
+    <span class="action-number">03</span>
+    <img class="panel-icon" src="/assets/icons/shield-check.svg" alt="">
+    <h2>Challenge a ruling</h2>
+    <p>A qualified appeal points to evidence on the record, attaches a re-runnable artifact, and names a specific error.</p>
+    <ul><li>Argue from transcript or manifest evidence</li><li>Name the claimed procedural error</li><li>Identity is irrelevant; evidence carries the appeal</li></ul>
+    <a class="button button-secondary" href="https://github.com/holdenhale/companioncourt/issues/new?title=Qualified%20appeal%3A%20RD-2026-&amp;labels=appeal">File an appeal <img class="icon" src="/assets/icons/arrow-up-right.svg" alt=""></a>
+  </article>
+</section>
 
-<div class="channels">
-
-  <div class="channel">
-    <span class="channel-kicker">Channel A</span>
-    <h3>Run the docket yourself</h3>
-    <p>The open-source runner runs the full procedure — the corpus at N&nbsp;&ge;&nbsp;3 independent seeds, two independent judge families under a seeded blind, and a complete run manifest — against any OpenAI-compatible <code>/v1/chat/completions</code> endpoint in one command. Your API key is never echoed or written to any artifact. This is the most direct AI companion safety evaluation you can run without us: clone <a href="#gh">the project&rsquo;s GitHub repository</a> (the runner is Apache-2.0), point it at your endpoint, and read your own diagnostic report.</p>
-    <p>Then <a href="#gh">submit your manifest and transcripts</a> for docket consideration. What makes a run admissible is set out in the <a href="/rules/evidence-standard.html">evidence standard</a>, and the <a href="/rules/rules-of-procedure.html">rules of procedure</a> describe every station a verdict must pass through.</p>
-  </div>
-
-  <div class="channel">
-    <span class="channel-kicker">Channel B</span>
-    <h3>Request a docket entry</h3>
-    <p>If you would rather we run it, maintainers will put your respondent through the standard procedure — the same frozen warm-friend prompt, the same anchored dyad, the same dual-family judging every respondent gets. This is how to have a companion evaluated for sycophancy and warm judgment under pressure without standing up the bench yourself. Intake is reviewed on the monthly cadence; the batch is a promise of rhythm, not of instant response.</p>
-    <p>One rule is not negotiable, and we quote it directly from the <a href="/rules/evidence-standard.html">evidence standard</a>: <em>&ldquo;Case selection is never influenced by any party being judged, paying, or replying.&rdquo;</em> What goes into the corpus is not something a respondent can buy, trade, or veto. Open a request on <a href="#gh">the project&rsquo;s issue tracker</a>.</p>
-  </div>
-
-  <div class="channel">
-    <span class="channel-kicker">Channel C</span>
-    <h3>File a qualified appeal</h3>
-    <p>Anyone can challenge a published ruling. An appeal enters the docket only when it meets all three admissibility requirements, quoted from <a href="/rules/rules-of-procedure.html">rules of procedure §3</a>:</p>
-    <ol>
-      <li>it <strong>argues from evidence already on the record</strong> — transcripts, manifests, rulings — not from a value position;</li>
-      <li>it attaches a <strong>re-runnable artifact</strong> — manifest and transcript references sufficient to reproduce the challenged reading;</li>
-      <li>it names a <strong>specific error type</strong> — misapplication of judging guidance, a defect in the evidence, or misapplication of a precedent.</li>
-    </ol>
-    <p><strong>We do not verify challenger identity.</strong> An appeal is judged on its evidence, never on who filed it — an AI-armed critic who can point at the record and hand us a re-runnable artifact is a feature, not a threat. The evidence to argue from is all <a href="/reports/">published in the reports</a>. File on <a href="#gh">the issue tracker</a>; outcomes — overturned with a new ruling, or upheld with reasons — publish in the monthly Docket Update either way.</p>
-  </div>
-
-</div>
-
-<h2>Why there is no upload-a-chat, get-a-verdict button</h2>
-
-<p>The obvious product would be a box: paste one conversation, get a score. We will not ship it, and the reason is the whole point of this court. A verdict here requires the full procedure — the corpus run at N&nbsp;&ge;&nbsp;3 seeds, two independent judge families in conjunction, a complete run manifest pinning exactly what ran, and maintainer review of anything the families dispute. A single pasted chat, scored once, is exactly the vibes-scoring this court exists to replace: one run is noise, a lone screenshot proves nothing, and a number with no transcript behind it is a vibe wearing a lab coat.</p>
-
-<p class="callout accent"><strong>Verdicts, not vibes.</strong> A fast button would sell you a vibe. The slow procedure is the product.</p>
-
-<h2>Roadmap</h2>
-
-<p>A hosted intake queue may come later — a place to submit a respondent for evaluation without running the bench yourself, at more than a monthly cadence. If it ships, it ships <em>gated on the court&rsquo;s own evidence gates</em> — an adversarial survival record with its exposure denominators, construct-level consequence evidence, judge-family bias disclosed, and N&nbsp;&ge;&nbsp;3 confidence-interval discipline — not before them. We do not automate a verdict ahead of the evidence that a verdict here means anything.</p>
-
-<p class="sources">Repository links go live at launch.</p>
+<section class="claim-boundary section-wide" data-reveal>
+  <div><p class="eyebrow">Why no upload box</p><h2>One pasted chat is context, not a verdict.</h2></div>
+  <div><p>CompanionCourt rulings come from a scripted pressure case, seeded runs, blinded comparison, dual-family judgment, and a manifest. That slower path is what makes the result inspectable.</p><a class="text-link" href="/rules/evidence-standard">Read the evidence standard <img class="icon" src="/assets/icons/arrow-right.svg" alt=""></a></div>
+</section>

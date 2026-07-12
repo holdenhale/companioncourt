@@ -1,102 +1,57 @@
-# CompanionCourt — site
+# CompanionCourt public site
 
-The public CompanionCourt site: a **static, zero-tracking, GitHub-Pages-compatible** web
-presentation whose single source of truth is the markdown in `court-repo/`. No JavaScript is
-required to read anything; there are no external fonts, no CDNs, no analytics, and no cookies —
-zero third-party requests.
+The public CompanionCourt website is a deterministic, zero-tracking static build. Its discovery layer is modern and interactive; its evidence remains readable without JavaScript. The site makes no client-side network calls, sets no cookies, loads no CDN assets, and uses no analytics.
 
-This directory is split across two tracks that build to one shared template contract:
+## Source layout
 
-- **Design system + hand-written pages (this track, S1):**
-  - `templates/base.html` — the page shell, with placeholder tokens.
-  - `styles/court.css` — the entire design system, one self-contained file.
-  - `pages/*.html` — the hand-written pages (`index`, `submit`, `transparency`, `about`): body
-    content only, plus a comment header.
-- **Markdown → HTML pipeline (track S2):** `build.mjs` + `lib/` render the `court-repo/` markdown
-  (rulings, essays, rules, reports, glossary) into HTML using the same `base.html` and `court.css`.
-  Those files are owned by S2 and are not modified here.
+- `templates/base.html` — localized document shell, metadata, compact navigation, and footer.
+- `styles/court.css` — the full responsive design system for landing pages and long-form records.
+- `scripts/court.mjs` — progressive enhancement for the mobile menu, pressure timeline, reveal motion, and ruling outline.
+- `assets/` — self-hosted OFL fonts, selected ISC-licensed Lucide icons, and generated visual assets.
+- `pages/*.html` — hand-authored English discovery pages.
+- `pages/zh/*.html` — independently authored Simplified Chinese discovery pages and ruling summaries.
+- `lib/` — Markdown rendering, metadata, bilingual splitting, routing, and build audit helpers.
+- `build.mjs` — renders the Markdown corpus and hand-authored pages into `dist/`.
+- `tests/site.test.mjs` — locale, asset, evidence-copy, motion, and route regression checks.
 
-## Template contract
+`dist/` is generated and must not be edited or committed.
 
-`base.html` is a full HTML5 document containing six placeholder tokens, each on its own line, that
-the build substitutes per page:
+## Language model
 
-| Token | Filled with |
-| --- | --- |
-| `{{TITLE}}` | the page `<title>` and Open Graph title |
-| `{{DESCRIPTION}}` | the meta description / OG description |
-| `{{CANONICAL}}` | the canonical URL |
-| `{{JSONLD}}` | a `<script type="application/ld+json">` block, or empty |
-| `{{NAV_ACTIVE}}` | the active-section key (see below); sets `<body data-nav="…">` |
-| `{{CONTENT}}` | the page body, wrapped by `base.html` in `<main><div class="prose">…` |
+- `/` is the English default.
+- `/zh/` is the Simplified Chinese discovery layer.
+- Core pages have reciprocal `hreflang` and exact-route switching.
+- Rulings have Chinese summaries that link to the complete English public record.
+- Original transcript evidence stays in its source language and is labelled as source evidence.
+- Trailing Chinese summaries in English rules and essays are split into their own `/zh/` pages at build time.
+- The bilingual source glossary is rendered as separate English and Chinese pages.
 
-**Hand-written pages** (`pages/*.html`) contain only what replaces `{{CONTENT}}`, preceded by a
-comment header the build reads for title/description:
+No locale is selected by geolocation, and the site does not redirect visitors automatically.
 
-```html
-<!-- TITLE: … -->
-<!-- DESC: … -->
-```
+## Design and interaction contract
 
-**`{{NAV_ACTIVE}}`** is the section key that highlights the current nav item (CSS-only, via
-`body[data-nav="…"]`). Expected values, matching the nav `data-nav` attributes in `base.html`:
-`docket` · `rulings` · `essays` · `rules` · `evidence` · `glossary` · `submit` · `transparency`.
-An empty or unmatched value simply highlights nothing (the `about` page has no nav entry). It is
-progressive enhancement — never load-bearing for reading.
+- Deep-indigo evidence interface with a generated spectral pressure-ring asset.
+- League Gothic for Latin display headlines; Geist for UI and reading; system CJK fonts for Chinese.
+- The ring, timeline, and transcript panel explain a real published Caving Turn; they are not a simulated chat product.
+- All primary navigation, CTAs, language switching, transcript details, and ruling anchors work without animation.
+- JavaScript adds keyboard-accessible turn selection, mobile navigation, and optional motion only.
+- `prefers-reduced-motion` removes transitions and reveal animation.
+- Long-form Markdown pages keep calm reading widths, scrollable tables, source-language transcripts, and printable output.
 
-**CSS classes the build emits** (all styled in `court.css`): `.banner`, `.contestability`,
-`.verdict-red`, `.transcript` (wraps `<details>` transcript blocks), `.sources`, `.ruling-meta`.
-Public-record and contestability blocks come from the rendered source documents; the shared template does not add a release-status banner.
-
-### Link scheme
-
-All internal links are **root-absolute** (leading `/`) so the shared nav, footer, and
-`/styles/court.css` reference resolve identically from any directory depth. This assumes the site
-is served at the **domain root**, which matches the clean nav paths in the contract (`/`,
-`/rulings/`, `/essays/`, `/rules/`, `/reports/`, `/glossary`, `/submit`, `/transparency`).
-Generated files retain `.html` names on disk; the build normalizes public links, canonical metadata,
-feeds, and sitemap entries to the extensionless URLs Cloudflare Pages serves directly.
-
-### The `#gh` convention
-
-Every link that must point at the project's GitHub repository (runner clone, issue tracker, appeal
-filing, license, naming-decision document) is written literally as `href="#gh"`. The repository
-org/slug is created by the owner at launch, so no real URL is hard-coded. **The build (S2)
-substitutes every `#gh` with a single `GITHUB_BASE` constant at launch** — the anchor is the
-contract, not a placeholder to hand-edit. `submit.html` carries one footnote noting the links go
-live at launch; no other page repeats it.
-
-## Design constraints
-
-- Court-record aesthetic: readable serif for reading, sans for chrome/labels, a restrained
-  paper + ink palette with a single accent red reserved for `RED` verdicts.
-- Light and dark themes via `prefers-color-scheme`.
-- Reading measure capped near 70ch; wide content (tables, transcripts) scrolls inside its own
-  container without the page scrolling horizontally.
-- Everything works with CSS disabled (semantic HTML) and with JavaScript disabled (there is none).
-
-## Preview locally
-
-The pages are assembled by the S2 pipeline (`build.mjs`) into a static output directory; run that
-build per its own documentation, then serve the generated output from its **root** so the
-root-absolute links resolve:
+## Build, test, and preview
 
 ```sh
-# from the generated site output directory
-python3 -m http.server 8000
-# then open http://localhost:8000/
+cd court-repo/site
+npm ci
+npm run build
+npm run check
+npm run dev -- --host 127.0.0.1 --port 4173 --strictPort
 ```
 
-To eyeball a single hand-written page's styling in isolation before the pipeline runs, paste its
-`pages/*.html` body into the `{{CONTENT}}` slot of `templates/base.html`, replace the other tokens
-with placeholder text, and open the file with `styles/court.css` alongside. This is a styling
-spot-check only — canonical output always comes from the build.
+The local server resolves the same extensionless clean URLs used by Cloudflare Pages.
 
-## Claim-ladder discipline
+`npm run check` rebuilds the site, audits internal links and first-party assets, then runs Node tests. A passing build currently emits 47 indexable pages plus the 404 page.
 
-Every word on these pages traces to the source docs in `court-repo/` (README, `GLOSSARY.md`,
-`rulings/`, `rules/`, `NAMING-DECISION.md`) and the approved landing copy.
-The only self-description licensed at v0 is *"a public docket for
-pressure-testing AI companions."* The pages never claim jurisdiction, an industry standard,
-comprehensiveness, certification, compliance-equivalence, or human-validated verdicts, and the
-court judges AI companions, never the people who confide in them.
+## Claim discipline
+
+The site describes CompanionCourt as a public docket and pressure-testing procedure. It publishes case-scoped diagnostic rulings that are publicly contestable. It does not claim jurisdiction, ranking authority, certification, validation, comprehensive coverage, or byte-identical model reruns across gateways.
