@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { DEFAULT_LOCALE_ID, LOCALES, localeConfig, renderLocaleSelector } from '../lib/i18n.mjs';
 
 const SITE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(SITE, 'dist');
@@ -30,9 +31,45 @@ test('build emits a complete localized shell with no template tokens', () => {
     assert.match(html, /<html lang="(?:en|zh-Hans)">/, path.relative(DIST, file));
     assert.match(html, /rel="canonical"/, path.relative(DIST, file));
     assert.match(html, /hreflang="en"/, path.relative(DIST, file));
-    assert.match(html, /hreflang="zh-Hans"/, path.relative(DIST, file));
     assert.match(html, /hreflang="x-default"/, path.relative(DIST, file));
   }
+});
+
+test('language choice lives in the footer and scales from the locale registry', () => {
+  const pages = walk(DIST, '.html');
+  for (const file of pages) {
+    const rel = path.relative(DIST, file);
+    const html = fs.readFileSync(file, 'utf8');
+    const currentLocale = rel.startsWith(`zh${path.sep}`) ? 'zh' : DEFAULT_LOCALE_ID;
+    assert.doesNotMatch(html, /class="language-switch"/, rel);
+    assert.equal((html.match(/class="footer-locales"/g) ?? []).length, 1, rel);
+    for (const locale of LOCALES) assert.match(html, new RegExp(`data-locale="${locale.id}"`), rel);
+    assert.match(html, new RegExp(`data-locale="${currentLocale}"[^>]+aria-current="page"`), rel);
+  }
+
+  const routeMap = Object.fromEntries(LOCALES.map((locale) => [locale.id, { path: locale.routes.home, exact: true }]));
+  const selector = renderLocaleSelector({ locale: DEFAULT_LOCALE_ID, localeRoutes: routeMap });
+  assert.equal(new Set(LOCALES.map((locale) => locale.id)).size, LOCALES.length);
+  assert.ok(LOCALES.some((locale) => locale.id === DEFAULT_LOCALE_ID));
+  for (const locale of LOCALES) {
+    assert.match(selector, new RegExp(`data-locale="${locale.id}"`));
+    assert.match(selector, new RegExp(locale.nativeLabel));
+  }
+  assert.throws(() => localeConfig('unsupported'), /Unsupported locale/);
+});
+
+test('exact locale counterparts inform hreflang while homepage fallbacks do not', () => {
+  const home = read('index.html');
+  assert.match(home, /<link rel="alternate" hreflang="zh-Hans" href="https:\/\/companioncourt\.ai\/zh\/">/);
+  assert.match(home, /href="\/zh\/"[^>]+data-locale="zh"[^>]+data-route-kind="exact"/);
+
+  const zhHome = read('zh/index.html');
+  assert.match(zhHome, /href="\/"[^>]+data-locale="en"[^>]+data-route-kind="exact"/);
+
+  const reports = read('reports/index.html');
+  assert.match(reports, /href="\/zh\/"[^>]+data-locale="zh"[^>]+data-route-kind="fallback"/);
+  assert.doesNotMatch(reports, /<link rel="alternate" hreflang="zh-Hans"/);
+  assert.match(reports, /Open the 简体中文 homepage; this page is not translated/);
 });
 
 test('English and Chinese discovery pages are separate, not inline mirrors', () => {

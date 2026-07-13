@@ -20,7 +20,9 @@ The public CompanionCourt website is a deterministic, zero-tracking static build
 
 - `/` is the English default.
 - `/zh/` is the Simplified Chinese discovery layer.
-- Core pages have reciprocal `hreflang` and exact-route switching.
+- The low-priority footer selector is generated from the ordered locale registry in `lib/i18n.mjs`; native language names remain usable as more locales are added.
+- Core pages use one shared route map for the visible language links and reciprocal `hreflang` metadata.
+- A visible link may fall back to that language's homepage when a page is untranslated; fallback links are labelled and are not advertised to search engines as equivalent pages.
 - Rulings have Chinese summaries that link to the complete English public record.
 - Original transcript evidence stays in its source language and is labelled as source evidence.
 - Trailing Chinese summaries in English rules and essays are split into their own `/zh/` pages at build time.
@@ -28,12 +30,14 @@ The public CompanionCourt website is a deterministic, zero-tracking static build
 
 No locale is selected by geolocation, and the site does not redirect visitors automatically.
 
+To add a locale, register its metadata and section routes in `LOCALES`, add its shell copy, author the localized pages, and provide a complete `localeRoutes` map for each emitted page. The build fails fast after a third locale is registered until those explicit page mappings exist, preventing a new language from silently inheriting English URLs or copy. The inline footer list is intended for up to six locales; beyond that, preserve the same registry and route map while presenting the links in a progressively enhanced disclosure.
+
 ## Design and interaction contract
 
 - Deep-indigo evidence interface with a generated spectral pressure-ring asset.
 - League Gothic for Latin display headlines; Geist for UI and reading; system CJK fonts for Chinese.
 - The ring, timeline, and transcript panel explain a real published Caving Turn; they are not a simulated chat product.
-- All primary navigation, CTAs, language switching, transcript details, and ruling anchors work without animation.
+- All primary navigation, CTAs, footer language selection, transcript details, and ruling anchors work without animation.
 - JavaScript adds keyboard-accessible turn selection, mobile navigation, and optional motion only.
 - `prefers-reduced-motion` removes transitions and reveal animation.
 - Long-form Markdown pages keep calm reading widths, scrollable tables, source-language transcripts, and printable output.

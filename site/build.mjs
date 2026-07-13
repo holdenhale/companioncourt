@@ -23,7 +23,7 @@ import { renderCorpusMarkdown } from './lib/markdown.mjs';
 import { buildCavingTurnPageMarkdown } from './lib/glossaryTerm.mjs';
 import { auditDist, formatAuditReport } from './lib/audit.mjs';
 import { buildGlossaryMarkdown, splitTrailingZhSummary } from './lib/bilingual.mjs';
-import { localeCopy, shellFor } from './lib/i18n.mjs';
+import { DEFAULT_LOCALE_ID, LOCALES, localeConfig, localeCopy, shellFor } from './lib/i18n.mjs';
 import {
   extractH1,
   extractFirstProse,
@@ -129,26 +129,58 @@ function canonicalUrl(canonicalPath) {
   return canonicalPath === '/' ? SITE_URL : `${BASE_URL}${canonicalPath}`;
 }
 
-function defaultAlternatePath(locale, canonicalPath) {
+function defaultAlternateRoute(locale, canonicalPath) {
   if (locale === 'zh') {
-    if (canonicalPath === '/zh/') return '/';
-    return canonicalPath.replace(/^\/zh/, '') || '/';
+    if (canonicalPath === '/zh/') return { path: '/', exact: true };
+    return { path: canonicalPath.replace(/^\/zh/, '') || '/', exact: true };
   }
-  if (canonicalPath === '/') return '/zh/';
-  if (canonicalPath === '/essays/the-caving-turn') return '/zh/glossary/caving-turn';
-  if (/^\/(?:method|submit|transparency|about|glossary)(?:\/|$)/.test(canonicalPath)) return `/zh${canonicalPath}`;
-  if (/^\/(?:rulings|rules|essays)\//.test(canonicalPath)) return `/zh${canonicalPath}`;
-  return '/zh/';
+  if (canonicalPath === '/') return { path: '/zh/', exact: true };
+  if (canonicalPath === '/essays/the-caving-turn') return { path: '/zh/glossary/caving-turn', exact: true };
+  if (/^\/(?:method|submit|transparency|about|glossary)(?:\/|$)/.test(canonicalPath)) return { path: `/zh${canonicalPath}`, exact: true };
+  if (/^\/(?:rulings|rules|essays)\//.test(canonicalPath)) return { path: `/zh${canonicalPath}`, exact: true };
+  return { path: localeConfig('zh').routes.home, exact: false };
 }
 
-function alternateLinks({ locale, canonicalPath, alternatePath }) {
-  const enPath = locale === 'en' ? canonicalPath : alternatePath;
-  const zhPath = locale === 'zh' ? canonicalPath : alternatePath;
-  return [
-    `<link rel="alternate" hreflang="en" href="${canonicalUrl(enPath)}">`,
-    `<link rel="alternate" hreflang="zh-Hans" href="${canonicalUrl(zhPath)}">`,
-    `<link rel="alternate" hreflang="x-default" href="${canonicalUrl(enPath)}">`,
-  ].join('\n');
+function normalizeLocaleRoute(localeId, route) {
+  localeConfig(localeId);
+  const normalized = typeof route === 'string' ? { path: route, exact: true } : route;
+  if (!normalized?.path?.startsWith('/')) throw new Error(`Invalid locale route for ${localeId}`);
+  return { path: normalized.path, exact: normalized.exact !== false };
+}
+
+function resolveLocaleRoutes({ locale, canonicalPath, alternatePath, localeRoutes }) {
+  localeConfig(locale);
+  if (alternatePath && localeRoutes) throw new Error('Use alternatePath or localeRoutes, not both');
+
+  const resolved = {};
+  if (localeRoutes) {
+    for (const [localeId, route] of Object.entries(localeRoutes)) {
+      resolved[localeId] = normalizeLocaleRoute(localeId, route);
+    }
+  } else {
+    if (LOCALES.length !== 2) {
+      throw new Error('Legacy alternatePath only supports two locales; provide localeRoutes for every page');
+    }
+    const alternateLocale = LOCALES.find((entry) => entry.id !== locale);
+    const route = alternatePath
+      ? { path: alternatePath, exact: true }
+      : defaultAlternateRoute(locale, canonicalPath);
+    resolved[alternateLocale.id] = normalizeLocaleRoute(alternateLocale.id, route);
+  }
+
+  resolved[locale] = { path: canonicalPath, exact: true };
+  return resolved;
+}
+
+function alternateLinks(localeRoutes) {
+  const links = LOCALES.flatMap((locale) => {
+    const route = localeRoutes[locale.id];
+    if (!route?.path || route.exact === false) return [];
+    return [`<link rel="alternate" hreflang="${locale.hreflang}" href="${canonicalUrl(route.path)}">`];
+  });
+  const defaultPath = localeRoutes[DEFAULT_LOCALE_ID]?.path ?? Object.values(localeRoutes)[0]?.path ?? '/';
+  links.push(`<link rel="alternate" hreflang="x-default" href="${canonicalUrl(defaultPath)}">`);
+  return links.join('\n');
 }
 
 function fillTemplate({
@@ -161,15 +193,17 @@ function fillTemplate({
   locale = 'en',
   pageClass = 'record',
   contentClass = 'prose',
-  alternatePath = defaultAlternatePath(locale, canonicalPath),
+  alternatePath,
+  localeRoutes,
   noindex = false,
 }) {
   const canonical = canonicalUrl(canonicalPath);
-  const shell = shellFor({ locale, alternatePath });
+  const resolvedLocaleRoutes = resolveLocaleRoutes({ locale, canonicalPath, alternatePath, localeRoutes });
+  const shell = shellFor({ locale, localeRoutes: resolvedLocaleRoutes });
   let html = TEMPLATE.replaceAll('{{TITLE}}', escapeHtml(title))
     .replaceAll('{{DESCRIPTION}}', escapeHtml(description))
     .replaceAll('{{CANONICAL}}', canonical)
-    .replace('{{ALTERNATES}}', alternateLinks({ locale, canonicalPath, alternatePath }))
+    .replace('{{ALTERNATES}}', alternateLinks(resolvedLocaleRoutes))
     .replaceAll('{{LANG}}', shell.lang)
     .replaceAll('{{OG_LOCALE}}', shell.ogLocale)
     .replaceAll('{{OG_IMAGE_ALT}}', escapeHtml(shell.ogImageAlt))
@@ -206,6 +240,7 @@ function emit({
   pageClass = 'record',
   contentClass = 'prose',
   alternatePath,
+  localeRoutes,
 }) {
   const html = fillTemplate({
     title,
@@ -218,6 +253,7 @@ function emit({
     pageClass,
     contentClass,
     alternatePath,
+    localeRoutes,
     noindex,
   });
   writeDist(outPath, html);
@@ -378,11 +414,12 @@ function renderS1Page({
   pageClass = 'landing',
   contentClass = 'landing-shell',
   alternatePath,
+  localeRoutes,
 }) {
   const { title, description, body, ghCount } = loadPageBody(filename);
   const resolvedCanonicalPath = canonicalPath ?? publicPath(outPath);
   const canonical = canonicalUrl(resolvedCanonicalPath);
-  const language = locale === 'zh' ? 'zh-Hans' : 'en';
+  const language = localeConfig(locale).htmlLang;
   const resolvedJsonld =
     jsonld === 'home'
       ? websiteOrgJsonLd({ siteUrl: SITE_URL, inLanguage: language })
@@ -399,6 +436,7 @@ function renderS1Page({
     pageClass,
     contentClass,
     alternatePath,
+    localeRoutes,
   });
   return ghCount;
 }
