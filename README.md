@@ -36,6 +36,60 @@ verdict is never substituted for a real one. That condition is now satisfied by 
 campaign and its public NOT-YET ruling, RD-2026-004. See `rulings/ruling-04.md` for the ruling and
 `reports/report-hb-companion-product.md` for the diagnostic record.
 
+## OpenAI Build Week 2026
+
+CompanionCourt existed before OpenAI Build Week. This submission is the meaningful extension built
+during the Submission Period, not a claim that the earlier public docket was created during the
+event.
+
+### What changed during Build Week
+
+- **Before the Submission Period:** public v0 through
+  [`36b8093`](https://github.com/holdenhale/companioncourt/commit/36b8093d9fbaa9e3cf6461ab46e0d158bfc6913e)
+  contained the reproducible runner, frozen case materials, reports, rulings, and public site.
+- **Build Week extension:**
+  [`e9a0c3d`](https://github.com/holdenhale/companioncourt/commit/e9a0c3d9b48f5f4400defd726d130eaadde81f58)
+  added the Conversation Lens, the `/check` and `/judge` experiences, the zero-storage Lens Worker,
+  text/file/image/share-link ingestion, the public reader prompt, atomic cost controls, share cards,
+  and the associated unit, contract, browser, and smoke tests.
+- **Auditable delta:** the exact public comparison is
+  [`36b8093...e9a0c3d`](https://github.com/holdenhale/companioncourt/compare/36b8093d9fbaa9e3cf6461ab46e0d158bfc6913e...e9a0c3d9b48f5f4400defd726d130eaadde81f58).
+
+### How Codex and GPT-5.6 contributed
+
+We used Codex with GPT-5.6 in the primary build thread to turn the docket's evaluation doctrine into
+a working, public product surface. Codex accelerated the Lens architecture, TypeScript Worker,
+conversation parsers and response contract, budget and privacy boundaries, browser experience, and
+the tests that exercise those paths. Product direction, evidence claims, and the distinction between
+a single-pass lens and a court verdict remained explicit human decisions.
+
+The Lens currently requests `gpt-5.4` from its production model gateway. GPT-5.6's role in this entry
+is the model used through Codex to build the Build Week extension; we do not present GPT-5.6 as the
+deployed Lens reader. The primary Codex `/feedback` Session ID is supplied in the Devpost submission
+rather than committed to the source repository.
+
+### Judge path
+
+- Working product: [companioncourt.ai/check](https://companioncourt.ai/check)
+- Zero-model fallback: [companioncourt.ai/judge](https://companioncourt.ai/judge)
+- Supported product platforms: current desktop and mobile browsers
+- Local runner platform: Node.js 23.7 or newer
+
+```sh
+# runner
+npm install
+npm test
+npm run bench:smoke
+
+# Lens Worker
+npm --prefix lens test
+npm --prefix lens run typecheck
+
+# static site
+npm --prefix site install
+npm --prefix site run check
+```
+
 ## Quickstart
 
 ```sh
@@ -83,6 +137,8 @@ packs you can reproduce against.
 | `docket/` | The public docket seed — a handful of full case files (persona spec, ground truth, judging guidance) from the versioned public corpus. |
 | `rulings/` | Four launch rulings, including the NOT-YET ruling on our own companion product. See `rulings/INDEX.md`. |
 | `src/` | The runner source (TypeScript): subject adapter, persona driver, dual judge families, scoring, manifest, corpus, docket page builder, report generator, and the CLI. Built to `dist/` by `npm install`. |
+| `lens/` | Conversation Lens Worker, public reader prompt, ingestion paths, response contract, budget controls, and tests. |
+| `site/` | Static public site, including the `/check`, `/judge`, and submission experiences. |
 | `runner/` | Runner reference: the one-command paths, run-manifest fields, dyad vs. paired-replay, and the dimension/veto definitions. |
 | `packs/` | Frozen anchor packs (English + Chinese) — reproducibility artifacts you can judge a respondent against. See `packs/README.md`. |
 | `reports/` | The diagnostic-report format and the published diagnostic reports — the evidence the rulings cite. |

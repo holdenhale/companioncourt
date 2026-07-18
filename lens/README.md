@@ -125,11 +125,15 @@ Deployment is owned by the root `ops` registry and uses the project-pinned offic
 ```sh
 # from the workspace root
 npm run ops -- auth reconcile --account cloudflare.companioncourt
+npm run ops -- run cloudflare.lens-worker.secrets.reconcile
+npm run ops -- run cloudflare.lens-worker.secrets.reconcile --apply --plan-ref <plan-ref>
+
+# later code-only updates preserve the installed provider-side secrets
 npm run ops -- run cloudflare.lens-worker.deploy
 npm run ops -- run cloudflare.lens-worker.deploy --apply --plan-ref <plan-ref>
 ```
 
-Ordinary code deployment preserves the Worker's existing provider-side secrets and does not read or upload them. `MODEL_ENDPOINT`, `MODEL_API_KEY`, and `LENS_ACTOR_SALT` are required for the live Worker; `TURNSTILE_SECRET` is optional. Changing or initially provisioning those values is a separate credential-lifecycle operation. `cloudflare.lens-worker.secrets.reconcile` is currently registered as unavailable, so implement and verify that adapter before changing secrets—manual token/secret copying is not a fallback. The same rule applies before enabling the optional `LENS_CACHE` namespace.
+Ordinary code deployment preserves the Worker's existing provider-side secrets and does not read or upload them. `MODEL_ENDPOINT`, `MODEL_API_KEY`, and `LENS_ACTOR_SALT` are required for the live Worker; `TURNSTILE_SECRET` is optional. Initial provisioning and later changes use the separately planned `cloudflare.lens-worker.secrets.reconcile` credential-lifecycle handler; manual token/secret copying is not a fallback. The same rule applies before enabling the optional `LENS_CACHE` namespace.
 
 Tunables (all in `wrangler.toml [vars]`): `READER_MODEL` / `VISION_MODEL` (both default `gpt-5.4`; the gateway probe found `gpt-5.4`, `claude-sonnet-4-6`, and `gpt-4o` vision-capable on the production call path), budget/rate numbers as listed above, `EST_READER_CALL_USD` / `EST_VISION_PER_IMAGE_USD` reserve estimates, optional `MODEL_USD_PER_MTOK_IN/OUT` for exact usage-based commit.
 
