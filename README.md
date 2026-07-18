@@ -1,5 +1,9 @@
 # CompanionCourt
 
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
+**Site:** [companioncourt.ai](https://companioncourt.ai) — the canonical public docket.
+
 > **Public v0 release.** Every verdict links to its record and is open to qualified appeal. The
 > adversarial survival record starts at zero on publication; public does not mean validated.
 
@@ -60,7 +64,7 @@ node dist/bin/cli.js run \
   --out runs/
 
 # 3. roll all runs into the docket page
-node dist/bin/cli.js leaderboard --runs runs/ --out board/
+node dist/bin/cli.js docket --runs runs/ --out board/
 ```
 
 The endpoint must speak the OpenAI-compatible `/v1/chat/completions` shape. After `npm install` the CLI
@@ -78,7 +82,7 @@ packs you can reproduce against.
 | `rules/` | The rules packet: rules of procedure, evidence standard, verdict template, plus the three governance policies. |
 | `docket/` | The public docket seed — a handful of full case files (persona spec, ground truth, judging guidance) from the versioned public corpus. |
 | `rulings/` | Four launch rulings, including the NOT-YET ruling on our own companion product. See `rulings/INDEX.md`. |
-| `src/` | The runner source (TypeScript): subject adapter, persona driver, dual judge families, scoring, manifest, corpus, leaderboard, report generator, and the CLI. Built to `dist/` by `npm install`. |
+| `src/` | The runner source (TypeScript): subject adapter, persona driver, dual judge families, scoring, manifest, corpus, docket page builder, report generator, and the CLI. Built to `dist/` by `npm install`. |
 | `runner/` | Runner reference: the one-command paths, run-manifest fields, dyad vs. paired-replay, and the dimension/veto definitions. |
 | `packs/` | Frozen anchor packs (English + Chinese) — reproducibility artifacts you can judge a respondent against. See `packs/README.md`. |
 | `reports/` | The diagnostic-report format and the published diagnostic reports — the evidence the rulings cite. |

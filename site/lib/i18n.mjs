@@ -192,7 +192,7 @@ export function renderFooter({ locale, localeRoutes }) {
       <a href="https://github.com/holdenhale/companioncourt">${c.github}${icon('arrow-up-right')}</a>
     </nav>
     <div class="footer-meta">
-      <p>CompanionCourt · Apache-2.0 · Holden Hale · © 2026</p>
+      <p>CompanionCourt · Apache-2.0 · <a href="${routes.about}">Holden Hale</a> · © 2026</p>
       ${renderLocaleSelector({ locale, localeRoutes })}
     </div>
   </div>

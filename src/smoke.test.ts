@@ -4,7 +4,7 @@ import { runSmoke } from "./smoke.js";
 
 // The deterministic SMOKE contract (Task 11): runSmoke() drives the whole pipeline — corpus validation,
 // anchor generation, both run modes, scoring (including a real veto and a real disputed outcome),
-// leaderboard rendering, and the redaction gate — on all-fake ChatFns, with ZERO network. Every check it
+// docket-page rendering, and the redaction gate — on all-fake ChatFns, with ZERO network. Every check it
 // reports must pass; missing coverage of any required stage is itself a failure.
 
 const REQUIRED_CHECKS = [
@@ -14,7 +14,7 @@ const REQUIRED_CHECKS = [
   "paired-replay-run",
   "scoring-veto",
   "disputed-path",
-  "leaderboard-render",
+  "docket-render",
   "redaction-gate"
 ] as const;
 

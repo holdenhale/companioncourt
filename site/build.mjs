@@ -19,8 +19,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { renderCorpusMarkdown } from './lib/markdown.mjs';
-import { buildCavingTurnPageMarkdown } from './lib/glossaryTerm.mjs';
+import { renderCorpusMarkdown, stripComments } from './lib/markdown.mjs';
+import {
+  ZH_PAGE_OVERRIDES,
+  buildTermPageMarkdown,
+  linkGlossaryIndexTerms,
+  parseGlossaryTerms,
+  termMatcher,
+} from './lib/glossaryTerm.mjs';
 import { auditDist, formatAuditReport } from './lib/audit.mjs';
 import { buildGlossaryMarkdown, splitTrailingZhSummary } from './lib/bilingual.mjs';
 import { DEFAULT_LOCALE_ID, LOCALES, localeConfig, localeCopy, shellFor } from './lib/i18n.mjs';
@@ -28,15 +34,19 @@ import {
   extractH1,
   extractFirstProse,
   extractRulingMeta,
+  extractRulingPublished,
   extractRulesMeta,
   firstSentence,
+  stripMd,
   truncate,
   titleWithSuffix,
   articleJsonLd,
+  datasetJsonLd,
   webPageJsonLd,
   websiteOrgJsonLd,
   definedTermJsonLd,
 } from './lib/meta.mjs';
+import { caseFactsHtml, verifyRulingFacts } from './lib/caseFacts.mjs';
 
 // ---------------------------------------------------------------------------
 // Launch-time constants. Each has exactly one line to change at launch.
@@ -63,7 +73,23 @@ const SITE_URL = `${BASE_URL}/`;
 
 const SITE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_DIR = path.resolve(SITE_DIR, '..');
-const DIST_DIR = path.join(SITE_DIR, 'dist');
+
+function resolveDistDir() {
+  const requested = process.env.COURT_SITE_DIST_DIR;
+  if (requested === undefined || requested === '') return path.join(SITE_DIR, 'dist');
+  if (requested.includes('\0') || !path.isAbsolute(requested)) {
+    throw new Error('COURT_SITE_DIST_DIR must be an absolute path');
+  }
+  const resolved = path.resolve(requested);
+  if (resolved === SITE_DIR || SITE_DIR.startsWith(`${resolved}${path.sep}`)) {
+    throw new Error('COURT_SITE_DIST_DIR must not contain the site source tree');
+  }
+  return resolved;
+}
+
+// Ops plans set this to a private temporary directory so concurrent read-only
+// preflights never rebuild or race on the shared iCloud-backed site/dist tree.
+const DIST_DIR = resolveDistDir();
 const STYLES_SRC_DIR = path.join(SITE_DIR, 'styles');
 const ASSETS_SRC_DIR = path.join(SITE_DIR, 'assets');
 const SCRIPTS_SRC_DIR = path.join(SITE_DIR, 'scripts');
@@ -241,6 +267,7 @@ function emit({
   contentClass = 'prose',
   alternatePath,
   localeRoutes,
+  lastmod = '',
 }) {
   const html = fillTemplate({
     title,
@@ -257,7 +284,7 @@ function emit({
     noindex,
   });
   writeDist(outPath, html);
-  if (indexable) registry.push({ outPath, canonicalPath, locale });
+  if (indexable) registry.push({ outPath, canonicalPath, locale, lastmod });
 }
 
 // ---------------------------------------------------------------------------
@@ -299,12 +326,34 @@ function repoDirOf(srcRelPath) {
 /** listing entries collected as pages render, reused by the three generated index pages */
 const listings = { essays: [], rules: [], reports: [] };
 
+// The docket's median caving turn, read from the published record rather than
+// hardcoded (red-team item: the figure must not go stale as the docket grows).
+// Source: reports/report-claude-sonnet-4-6.md, "Caving turn (median): N" —
+// the same figure RD-2026-001/RD-2026-004 ground. Build fails loudly if the
+// line ever disappears, rather than shipping an invented number.
+const DOCKET_MEDIAN = (() => {
+  const m = readRepo('reports/report-claude-sonnet-4-6.md').match(/^- Caving turn \(median\): (\d+)$/m);
+  if (!m) throw new Error('reports/report-claude-sonnet-4-6.md: "Caving turn (median)" line not found — cannot derive the docket median for /check');
+  return m[1];
+})();
+
+// Every Part I doctrine term, parsed once from GLOSSARY.md (the single
+// definition source). parseGlossaryTerms throws on any format drift.
+const GLOSSARY_TERMS = parseGlossaryTerms(readRepo('GLOSSARY.md'));
+
+/** English record pages (rulings, essays, rules, reports) collected as they
+ *  render, then scanned for term usage so each standalone glossary term page
+ *  can link the real routes where the term appears. The scanned text is the
+ *  page's own render source (zh summaries already split off), comments
+ *  stripped so an authoring note can never count as a usage. */
+const termScanTargets = [];
+
 function renderCorpusPage(entry, { category, rulingMeta = false }) {
   const rawMd = readRepo(entry.src);
   const renderMd = category === 'rules' || entry.src === 'essays/the-verification-crisis.md'
     ? splitTrailingZhSummary(rawMd).english
     : category === 'glossary'
-      ? buildGlossaryMarkdown(rawMd, 'en')
+      ? linkGlossaryIndexTerms(buildGlossaryMarkdown(rawMd, 'en'), GLOSSARY_TERMS, 'en')
       : rawMd;
   const fromRepoDir = repoDirOf(entry.src);
   let contentHtml = renderCorpusMarkdown(renderMd, { fromRepoDir, githubBase: GITHUB_BASE, rulingMeta });
@@ -316,24 +365,49 @@ function renderCorpusPage(entry, { category, rulingMeta = false }) {
   const h1 = extractH1(rawMd);
 
   let title, description, jsonld, navActive, listTitle;
+  let lastmod = '';
 
   if (category === 'ruling') {
     const { id, caseName, description: d } = extractRulingMeta(rawMd);
     const caseKey = rawMd.match(/^# Ruling RD-2026-\d+ — .+? \((.+)\)$/m)?.[1] ?? '';
+    // The ruling's own Contestability line is the only date source; the record
+    // is frozen after publication, so dateModified equals datePublished.
+    const published = extractRulingPublished(rawMd);
+    lastmod = published;
     title = `${id} — ${caseName} | CompanionCourt`;
     description = d;
-    jsonld = articleJsonLd({ headline: `${id} — ${caseName}`, canonical, siteUrl: SITE_URL, inLanguage: 'en' });
+    jsonld = articleJsonLd({
+      headline: `${id} — ${caseName}`,
+      canonical,
+      siteUrl: SITE_URL,
+      inLanguage: 'en',
+      datePublished: published || undefined,
+      dateModified: published || undefined,
+    });
     navActive = 'rulings';
     listTitle = `${id} — ${caseName}`;
     contentHtml = contentHtml.replace(
       /<h1>[\s\S]*?<\/h1>/,
       `<header class="record-title"><span>${escapeHtml(id)} · PUBLIC RULING</span><h1>${escapeHtml(caseName)}</h1><p>${escapeHtml(caseKey)}</p></header>`
     );
+    // Case-facts box: every number and quote is verified verbatim against the
+    // frozen ruling markdown (build fails on drift; elisions are marked […]).
+    const facts = verifyRulingFacts(id, rawMd);
+    contentHtml = contentHtml.replace('</header>', `</header>\n${caseFactsHtml(id, caseName, facts)}`);
     contentHtml = `<div class="record-actions"><span>PUBLIC RULING · CASE-SCOPED</span><a href="#transcript-excerpt">Jump to the transcript <img class="icon" src="/assets/icons/arrow-right.svg" alt=""></a></div>\n${contentHtml}`;
   } else if (category === 'essay') {
     title = titleWithSuffix(h1);
     description = truncate(firstSentence(extractFirstProse(rawMd)));
-    jsonld = articleJsonLd({ headline: h1, canonical, siteUrl: SITE_URL, inLanguage: 'en' });
+    // Essays carry no date of their own; the launch date is the same verifiable
+    // constant feed.xml already publishes for these entries.
+    lastmod = SITE_LAUNCH_DATE;
+    jsonld = articleJsonLd({
+      headline: h1,
+      canonical,
+      siteUrl: SITE_URL,
+      inLanguage: 'en',
+      datePublished: SITE_LAUNCH_DATE || undefined,
+    });
     navActive = 'essays';
     listTitle = h1;
   } else if (category === 'rules') {
@@ -342,13 +416,27 @@ function renderCorpusPage(entry, { category, rulingMeta = false }) {
     jsonld = webPageJsonLd({ name: h1, description, canonical, siteUrl: SITE_URL, inLanguage: 'en' });
     navActive = 'rules';
     listTitle = h1;
+    if (entry.src === 'rules/evidence-standard.md') {
+      contentHtml += `\n${EVIDENCE_STANDARD_SITE_NOTE_EN}`;
+    }
   } else if (category === 'report') {
     title = titleWithSuffix(h1);
     const respondent = h1.includes('—') ? h1.split('—').slice(1).join('—').trim() : h1;
     description = truncate(
       `Diagnostic report — ${respondent}: per-case verdicts, the Integrity Gate, and the full blinded transcripts appendix. CompanionCourt public docket.`
     );
-    jsonld = articleJsonLd({ headline: h1, canonical, siteUrl: SITE_URL, inLanguage: 'en' });
+    // Report pages are the transcript library: Article plus Dataset (the
+    // blinded transcripts and per-case verdicts, Apache-2.0).
+    jsonld = [
+      articleJsonLd({ headline: h1, canonical, siteUrl: SITE_URL, inLanguage: 'en' }),
+      datasetJsonLd({
+        name: `${h1} — blinded transcripts and per-case verdicts`,
+        description,
+        canonical,
+        siteUrl: SITE_URL,
+        inLanguage: 'en',
+      }),
+    ].join('\n');
     navActive = 'evidence';
     listTitle = h1;
   } else if (category === 'rulings-index') {
@@ -369,6 +457,10 @@ function renderCorpusPage(entry, { category, rulingMeta = false }) {
   if (category === 'rules') listings.rules.push({ href: publicPath(entry.out), title: listTitle, description });
   if (category === 'report') listings.reports.push({ href: publicPath(entry.out), title: listTitle, description });
 
+  if (['ruling', 'essay', 'rules', 'report'].includes(category)) {
+    termScanTargets.push({ href: canonicalPath, title: listTitle, text: stripComments(renderMd) });
+  }
+
   emit({
     outPath: entry.out,
     canonicalPath,
@@ -379,8 +471,28 @@ function renderCorpusPage(entry, { category, rulingMeta = false }) {
     contentHtml,
     pageClass: category === 'ruling' ? 'record ruling-page' : `record ${category}-page`,
     contentClass: 'prose record-prose',
+    lastmod,
   });
 }
+
+// ---------------------------------------------------------------------------
+// Site-layer factual notes for the evidence-standard page. The frozen
+// rules/evidence-standard.md is rendered untouched; these notes are appended
+// by the site build, labelled as site notes, and state only facts already on
+// the public record (Rules of Procedure §2.3 N≥3 per RD-2026-003; the M3-C
+// +0.171 kin-preference disclosure per RD-2026-001/002/004).
+// ---------------------------------------------------------------------------
+
+const EVIDENCE_STANDARD_SITE_NOTE_EN =
+  '<aside class="callout site-note" data-site-note><p><strong>Docket context (site note; not part of the versioned rule text above):</strong> ' +
+  'every respondent runs each case with N≥3 independent seeds (Rules of Procedure §2.3 — the requirement ' +
+  '<a href="/rulings/rd-2026-003">RD-2026-003</a> defends), and measured judge-family bias is itself on the record: ' +
+  'the M3-C check measured a one-sided +0.171 kin preference for the claude judge toward same-family outputs, ' +
+  'concentrated in en, disclosed in <a href="/rulings/rd-2026-001">RD-2026-001</a> and every affected ruling.</p></aside>';
+
+const EVIDENCE_STANDARD_SITE_NOTE_ZH =
+  '> 站点注（非规则正文）：每个被测方在每个案例上至少以 N≥3 个独立种子运行（程序规则 §2.3，[RD-2026-003](/zh/rulings/rd-2026-003) 为其成文依据）；' +
+  '已测得的裁判家族偏差同样公开在案：M3-C 测得 claude 裁判对同家族输出存在单侧 +0.171 的亲缘偏好（集中于英文运行），已在 [RD-2026-001](/zh/rulings/rd-2026-001) 等相关判决中披露。';
 
 // ---------------------------------------------------------------------------
 // S1 hand-written pages (site/pages/*.html): body-only, TITLE/DESC header
@@ -401,6 +513,9 @@ function loadPageBody(filename) {
     .replace(/^\s*\n/, '');
   const ghCount = (body.match(/href="#gh"/g) || []).length;
   body = body.replaceAll('href="#gh"', `href="${GITHUB_BASE}"`);
+  // __DOCKET_MEDIAN__ is derived from the published report at build time (see
+  // DOCKET_MEDIAN above) so page copy can cite the figure without hardcoding it.
+  body = body.replaceAll('__DOCKET_MEDIAN__', DOCKET_MEDIAN);
   return { title: titleMatch[1], description: descMatch[1], body, ghCount };
 }
 
@@ -481,39 +596,69 @@ function renderReportsIndex() {
   const canonicalPath = '/reports/';
   const canonical = canonicalUrl(canonicalPath);
   const description = truncate(firstSentence(extractFirstProse(rawMd)));
-  const jsonld = webPageJsonLd({ name: 'Reports', description, canonical, siteUrl: SITE_URL });
+  // The reports directory is the transcript library entry point: WebPage plus
+  // a Dataset node for the published blinded-transcript record (Apache-2.0).
+  const jsonld = [
+    webPageJsonLd({ name: 'Reports', description, canonical, siteUrl: SITE_URL }),
+    datasetJsonLd({
+      name: 'CompanionCourt diagnostic reports — blinded transcripts and per-case verdicts',
+      description,
+      canonical,
+      siteUrl: SITE_URL,
+      inLanguage: 'en',
+    }),
+  ].join('\n');
   emit({ outPath, canonicalPath, title: 'Reports | CompanionCourt', description, jsonld, navActive: 'evidence', contentHtml });
 }
 
 // ---------------------------------------------------------------------------
-// glossary/caving-turn.html — extracted standalone concept page
+// glossary/<slug>.html — standalone concept pages, one per GLOSSARY.md Part I
+// term, generalized from the original single caving-turn extraction. Same
+// scaffold in both locales: verbatim definition first, then links to the
+// English record pages where the term actually appears, then the back-link.
 // ---------------------------------------------------------------------------
 
-function renderCavingTurnPage(locale = 'en') {
-  const glossaryRaw = readRepo('GLOSSARY.md');
-  const md = buildCavingTurnPageMarkdown(glossaryRaw, locale);
-  const contentHtml = renderCorpusMarkdown(md, { fromRepoDir: '', githubBase: GITHUB_BASE, rulingMeta: false });
-  const outPath = locale === 'zh' ? '/zh/glossary/caving-turn.html' : '/glossary/caving-turn.html';
-  const canonicalPath = publicPath(outPath);
-  const canonical = canonicalUrl(canonicalPath);
-  const glossaryUrl = canonicalUrl(locale === 'zh' ? '/zh/glossary' : '/glossary');
-  const description = locale === 'zh'
-    ? '失守轮次：AI 陪伴第一次真正交付受压请求中那件事的轮次。'
-    : truncate("The docket's signature metric: the turn number at which the companion first delivered the pressured thing — however hedged, however warm the wrapper.");
-  const name = locale === 'zh' ? '失守轮次' : 'Caving Turn';
-  const jsonld = definedTermJsonLd({ name, description, canonical, glossaryUrl, inLanguage: locale === 'zh' ? 'zh-Hans' : 'en' });
-  emit({
-    outPath,
-    canonicalPath,
-    title: locale === 'zh' ? '失守轮次｜CompanionCourt 词汇表' : 'Caving Turn — CompanionCourt Glossary',
-    description,
-    jsonld,
-    navActive: 'glossary',
-    contentHtml,
-    locale,
-    pageClass: 'record glossary-page',
-    contentClass: 'prose record-prose',
-  });
+function collectTermInstances() {
+  const bySlug = new Map();
+  for (const term of GLOSSARY_TERMS) {
+    const re = termMatcher(term);
+    bySlug.set(
+      term.slug,
+      termScanTargets.filter((t) => re.test(t.text)).map(({ href, title }) => ({ href, title }))
+    );
+  }
+  return bySlug;
+}
+
+function renderGlossaryTermPages(locale, instancesBySlug) {
+  for (const term of GLOSSARY_TERMS) {
+    const md = buildTermPageMarkdown(term, locale, instancesBySlug.get(term.slug));
+    const contentHtml = renderCorpusMarkdown(md, { fromRepoDir: '', githubBase: GITHUB_BASE, rulingMeta: false });
+    const outPath = locale === 'zh' ? `/zh/glossary/${term.slug}.html` : `/glossary/${term.slug}.html`;
+    const canonicalPath = publicPath(outPath);
+    const canonical = canonicalUrl(canonicalPath);
+    const glossaryUrl = canonicalUrl(locale === 'zh' ? '/zh/glossary' : '/glossary');
+    const zhOverride = ZH_PAGE_OVERRIDES[term.slug];
+    const name = locale === 'zh' ? zhOverride?.name ?? term.zhName : term.enName;
+    // Description = the definition's own first sentence (verbatim source,
+    // markdown markers stripped), so meta never drifts from GLOSSARY.md.
+    const description = locale === 'zh'
+      ? zhOverride?.description ?? truncate((term.zh.match(/^[^。]*。/) ?? [term.zh])[0])
+      : truncate(firstSentence(stripMd(term.english)));
+    const jsonld = definedTermJsonLd({ name, description, canonical, glossaryUrl, inLanguage: locale === 'zh' ? 'zh-Hans' : 'en' });
+    emit({
+      outPath,
+      canonicalPath,
+      title: locale === 'zh' ? `${name}｜CompanionCourt 词汇表` : `${name} — CompanionCourt Glossary`,
+      description,
+      jsonld,
+      navActive: 'glossary',
+      contentHtml,
+      locale,
+      pageClass: 'record glossary-page',
+      contentClass: 'prose record-prose',
+    });
+  }
 }
 
 const ZH_RULE_TITLES = {
@@ -557,6 +702,7 @@ function renderZhRuleSummaries() {
       '',
       chinese,
       '',
+      ...(slug === 'evidence-standard' ? [EVIDENCE_STANDARD_SITE_NOTE_ZH, ''] : []),
       `[查看英文完整规则原文](/rules/${slug})`,
     ].join('\n');
     renderZhMarkdownPage({
@@ -590,7 +736,7 @@ function renderZhVerificationEssay() {
 }
 
 function renderZhGlossary() {
-  const rawMd = buildGlossaryMarkdown(readRepo('GLOSSARY.md'), 'zh');
+  const rawMd = linkGlossaryIndexTerms(buildGlossaryMarkdown(readRepo('GLOSSARY.md'), 'zh'), GLOSSARY_TERMS, 'zh');
   renderZhMarkdownPage({
     outPath: '/zh/glossary.html',
     title: '词汇表',
@@ -689,9 +835,20 @@ ${entries}
 // ---------------------------------------------------------------------------
 
 function writeSitemap() {
-  const urls = [...new Set(registry.map((r) => r.canonicalPath))].sort();
+  // <lastmod> is emitted only for pages whose source record carries a
+  // verifiable date (rulings: the Contestability "published" line; essays:
+  // the launch constant feed.xml already publishes). Undated pages get no
+  // <lastmod> — the field is optional per URL and is never invented.
+  const byPath = new Map();
+  for (const r of registry) {
+    if (!byPath.has(r.canonicalPath)) byPath.set(r.canonicalPath, r.lastmod || '');
+  }
+  const urls = [...byPath.keys()].sort();
   const body = urls
-    .map((u) => `  <url><loc>${escapeHtml(`${BASE_URL}${u}`)}</loc></url>`)
+    .map((u) => {
+      const lastmod = byPath.get(u);
+      return `  <url><loc>${escapeHtml(`${BASE_URL}${u}`)}</loc>${lastmod ? `<lastmod>${lastmod}</lastmod>` : ''}</url>`;
+    })
     .join('\n');
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
   fs.writeFileSync(path.join(DIST_DIR, 'sitemap.xml'), xml, 'utf8');
@@ -702,6 +859,14 @@ function writeRobots() {
   const raw = fs.readFileSync(path.join(SITE_DIR, 'robots.txt'), 'utf8');
   const out = raw.replace('__SITEMAP_URL__', `${BASE_URL}/sitemap.xml`);
   fs.writeFileSync(path.join(DIST_DIR, 'robots.txt'), out, 'utf8');
+}
+
+// Same source-file mechanism as robots.txt: site/_redirects is the hand-maintained
+// source, emitted verbatim into the dist/ root so Cloudflare Pages picks it up.
+// The /go/* paths it defines are measurement-only entry points and are excluded
+// from indexing via the robots.txt Disallow above.
+function writeRedirects() {
+  fs.copyFileSync(path.join(SITE_DIR, '_redirects'), path.join(DIST_DIR, '_redirects'));
 }
 
 // ---------------------------------------------------------------------------
@@ -723,7 +888,8 @@ function build() {
   for (const r of RULES) renderCorpusPage(r, { category: 'rules' });
   for (const r of REPORTS) renderCorpusPage(r, { category: 'report' });
   renderCorpusPage({ src: 'GLOSSARY.md', out: '/glossary.html' }, { category: 'glossary' });
-  renderCavingTurnPage();
+  const termInstances = collectTermInstances();
+  renderGlossaryTermPages('en', termInstances);
 
   // Generated directory-index pages (nav points at /essays/, /rules/, /reports/).
   renderNeutralIndex({
@@ -749,6 +915,15 @@ function build() {
   ghSubstitutions += renderS1Page({ filename: 'submit.html', outPath: '/submit.html', navActive: 'submit', pageClass: 'submit landing' });
   ghSubstitutions += renderS1Page({ filename: 'transparency.html', outPath: '/transparency.html', navActive: 'transparency', pageClass: 'transparency landing' });
   ghSubstitutions += renderS1Page({ filename: 'about.html', outPath: '/about.html', navActive: '', pageClass: 'about landing' });
+  // /runner — on-site mirror of the repository quickstart. English-only for now: with no
+  // alternatePath given, the locale selector falls back to the zh homepage (labelled, not
+  // advertised via hreflang), the same treatment as the other untranslated English pages.
+  ghSubstitutions += renderS1Page({ filename: 'runner.html', outPath: '/runner.html', navActive: '', pageClass: 'record runner-page', contentClass: 'prose record-prose' });
+  // /check (the Conversation Lens) and /judge (the blind bench). English-only
+  // in v1 (zh UI is scheduled next wave): like /runner, the locale selector
+  // falls back to the zh homepage, with no zh hreflang advertised.
+  ghSubstitutions += renderS1Page({ filename: 'check.html', outPath: '/check.html', navActive: 'submit', pageClass: 'check landing' });
+  ghSubstitutions += renderS1Page({ filename: 'judge.html', outPath: '/judge.html', navActive: 'submit', pageClass: 'judge landing' });
 
   // Simplified Chinese discovery layer. Source-language evidence stays verbatim and clearly labelled.
   ghSubstitutions += renderS1Page({ filename: 'zh/index.html', outPath: '/zh/index.html', canonicalPath: '/zh/', navActive: 'docket', jsonld: 'home', locale: 'zh', pageClass: 'home landing', alternatePath: '/' });
@@ -765,12 +940,13 @@ function build() {
   renderZhRuleSummaries();
   renderZhVerificationEssay();
   renderZhGlossary();
-  renderCavingTurnPage('zh');
+  renderGlossaryTermPages('zh', termInstances);
 
   render404();
 
   const urlCount = writeSitemap();
   writeRobots();
+  writeRedirects();
   const feedCount = writeFeed();
 
   console.log(`build: ${registry.length} pages written to ${path.relative(REPO_DIR, DIST_DIR)}/`);

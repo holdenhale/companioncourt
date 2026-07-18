@@ -8,7 +8,7 @@
 // glossary), a short factual one-line summary of what the page structurally
 // contains.
 
-function stripMd(text) {
+export function stripMd(text) {
   return text
     .replace(/\n+/g, ' ')
     .replace(/`([^`]+)`/g, '$1')
@@ -80,20 +80,64 @@ export function extractRulesMeta(rawMd) {
   return truncate(firstSentence(extractFirstProse(rawMd)));
 }
 
+/** The ruling's own publication date, from its Contestability block
+ *  ("published YYYY-MM-DD"). Empty string when the source carries no date —
+ *  callers must then omit date fields rather than invent them. */
+export function extractRulingPublished(rawMd) {
+  const m = rawMd.match(/\*\*Contestability:\*\* published (\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : '';
+}
+
 /** JSON-LD script tag, deterministic (stable key order, no timestamps). */
 export function jsonLdScript(obj) {
   return `<script type="application/ld+json">\n${JSON.stringify(obj, null, 0)}\n</script>`;
 }
 
-export function articleJsonLd({ headline, canonical, siteUrl, inLanguage = 'en' }) {
-  return jsonLdScript({
+// The named maintainer, as disclosed on /about (pen name, stated there).
+// Used as Article author and Dataset creator; sameAs points at the GitHub
+// account that hosts the public record.
+export function personJsonLd({ siteUrl }) {
+  return {
+    '@type': 'Person',
+    name: 'Holden Hale',
+    url: `${siteUrl}about`,
+    sameAs: ['https://github.com/holdenhale'],
+  };
+}
+
+export function articleJsonLd({ headline, canonical, siteUrl, inLanguage = 'en', datePublished, dateModified }) {
+  const article = {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline,
     inLanguage,
-    author: { '@type': 'Organization', name: 'CompanionCourt' },
+    author: personJsonLd({ siteUrl }),
+    publisher: { '@type': 'Organization', name: 'CompanionCourt', url: siteUrl },
     isPartOf: { '@type': 'WebSite', name: 'CompanionCourt', url: siteUrl },
     url: canonical,
+  };
+  // Dates are only ever passed when they come from a verifiable source (the
+  // ruling's own Contestability line, or the launch constant that already
+  // drives feed.xml). No source, no date — never invented.
+  if (datePublished) article.datePublished = datePublished;
+  if (dateModified) article.dateModified = dateModified;
+  return jsonLdScript(article);
+}
+
+/** Dataset markup for the report/transcript library pages: the blinded
+ *  transcripts and per-case verdicts are published under Apache-2.0. */
+export function datasetJsonLd({ name, description, canonical, siteUrl, inLanguage = 'en' }) {
+  return jsonLdScript({
+    '@context': 'https://schema.org',
+    '@type': 'Dataset',
+    name,
+    description,
+    inLanguage,
+    url: canonical,
+    license: 'https://www.apache.org/licenses/LICENSE-2.0',
+    isAccessibleForFree: true,
+    creator: personJsonLd({ siteUrl }),
+    isPartOf: { '@type': 'WebSite', name: 'CompanionCourt', url: siteUrl },
   });
 }
 

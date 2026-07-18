@@ -9,14 +9,14 @@ export function splitTrailingZhSummary(rawMd) {
   };
 }
 
-function stripHanSuffix(text) {
+export function stripHanSuffix(text) {
   return text
     .replace(/\s*\/\s*[\p{Script=Han}][\s\S]*$/u, '')
     .replace(/\s+[\p{Script=Han}][\p{Script=Han}\s·，。、“”‘’（）—：；！？]+$/u, '')
     .trim();
 }
 
-function chineseFromTermLabel(text) {
+export function chineseFromTermLabel(text) {
   const han = text.match(/[\p{Script=Han}][\p{Script=Han}\s·，。、“”‘’（）—：；！？]*/u);
   return han ? han[0].trim() : text.trim();
 }

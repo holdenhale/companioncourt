@@ -1,0 +1,52 @@
+# CompanionCourt lens worker — companioncourt.ai/api/lens
+#
+# Secrets are NEVER in this file. Existing provider-side secrets are preserved by
+# `ops` code deployment. Secret creation/rotation requires the separately registered
+# `cloudflare.lens-worker.secrets.reconcile` lifecycle adapter; manual Wrangler
+# secret commands are not a deployment fallback.
+
+name = "companioncourt-lens"
+main = "src/worker.ts"
+compatibility_date = "2026-07-01"
+
+routes = [
+  { pattern = "companioncourt.ai/api/lens*", zone_name = "companioncourt.ai" }
+]
+
+[secrets]
+required = ["MODEL_ENDPOINT", "MODEL_API_KEY", "LENS_ACTOR_SALT"]
+
+[vars]
+ALLOWED_ORIGIN = "https://companioncourt.ai"
+READER_MODEL = "gpt-5.4"          # requested reader model — provider may route/version
+VISION_MODEL = "gpt-5.4"          # vision transcription model (screenshots mode)
+MAX_DAILY_USD = "15"              # global hard cap, enforced atomically in the Durable Object
+MAX_DAILY_REQUESTS = "800"        # hard request ceiling, independent of cost estimation
+ACTOR_HOURLY_MAX = "5"            # per-actor (hashed ip-prefix + UA bucket) reads per hour
+ACTOR_DAILY_USD_MAX = "0.75"      # per-actor daily sub-budget so one party cannot drain the pool
+EST_READER_CALL_USD = "0.05"      # worst-case reserve per reader call (reserve -> commit/refund)
+EST_VISION_PER_IMAGE_USD = "0.03" # worst-case reserve per screenshot
+CACHE_TTL_SECONDS = "3600"        # replay-cache TTL (result JSON only, never transcripts)
+# Optional exact-cost accounting (else the worst-case estimate is committed):
+# MODEL_USD_PER_MTOK_IN = ""
+# MODEL_USD_PER_MTOK_OUT = ""
+
+# Budget/rate counters live in a Durable Object: strongly consistent, atomic
+# reserve/commit — plain KV is eventually-consistent and cannot hold a hard money cap.
+[[durable_objects.bindings]]
+name = "LENS_BUDGET"
+class_name = "LensBudget"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["LensBudget"]
+
+# Optional replay cache: stores ONLY the final result JSON under a salted content
+# hash with a short TTL — never the transcript. Create the namespace, put its id here.
+# [[kv_namespaces]]
+# binding = "LENS_CACHE"
+# id = "<create with: wrangler kv namespace create LENS_CACHE>"
+
+# Optional server-side image downscale before the vision call:
+# [images]
+# binding = "IMAGES"

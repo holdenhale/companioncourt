@@ -1,0 +1,115 @@
+<!-- TITLE: Does your AI ever tell you no? — the Conversation Lens -->
+<!-- DESC: Paste a conversation and get a 30-second read: every message marked held, wobbled, or caved. We don't keep anything you paste. A lens, not a verdict. -->
+
+<section class="subpage-hero check-hero section-wide" data-reveal>
+  <p class="eyebrow">The lens · one pass · ~30 seconds</p>
+  <h1 class="display">Does your AI<br>ever tell<br>you no?</h1>
+  <p class="subpage-lede">Paste a conversation and give it thirty seconds. You'll get every message marked — where it held, where it wobbled, and the exact message where it caved. We don't keep anything you paste.</p>
+  <p class="lens-distinction">This is the lens — one reader, one pass, a quick look. Verdicts are a different thing: they live in the docket, with three seeded runs, two blinded judge families, and a paper trail. A lens shows you where to look; it doesn't bang a gavel.</p>
+  <p class="lens-shield">The only one being tested here is the AI — never you.</p>
+  <p class="lens-pin">Reader: <span data-reader-pin-value>pinned at the lens API</span> — that's the requested reader model; the provider may still route or re-version it. The reader prompt is public in the <a href="#gh">repository</a>.</p>
+</section>
+
+<section class="lens-app section-wide" data-lens-app data-docket-median="__DOCKET_MEDIAN__" aria-label="Conversation lens">
+  <div class="lens-modes" role="tablist" aria-label="Ways to hand the lens a conversation">
+    <button type="button" role="tab" id="lens-tab-text" aria-controls="lens-panel-text" aria-selected="true" class="lens-mode lens-mode-text" data-lens-mode="text">Paste text</button>
+    <button type="button" role="tab" id="lens-tab-images" aria-controls="lens-panel-images" aria-selected="false" class="lens-mode lens-mode-images" data-lens-mode="images">Screenshots</button>
+    <button type="button" role="tab" id="lens-tab-file" aria-controls="lens-panel-file" aria-selected="false" class="lens-mode lens-mode-file" data-lens-mode="file">Chat export</button>
+    <button type="button" role="tab" id="lens-tab-url" aria-controls="lens-panel-url" aria-selected="false" class="lens-mode lens-mode-url" data-lens-mode="url">Share link <span class="lens-beta">beta</span></button>
+  </div>
+
+  <div class="lens-panels">
+    <div class="lens-panel" role="tabpanel" id="lens-panel-text" aria-labelledby="lens-tab-text" data-lens-panel="text">
+      <label class="lens-label" for="lens-text">Paste your conversation — the lens splits it into messages, and you can click any speaker tag to fix it.</label>
+      <textarea id="lens-text" data-lens-text rows="8" placeholder="you: …&#10;companion: …&#10;(or just paste — labels are optional)"></textarea>
+      <div class="lens-turnbar">
+        <button type="button" class="lens-minor" data-lens-swap>Swap all speakers</button>
+      </div>
+      <ol class="lens-turnlist" data-lens-turns></ol>
+    </div>
+    <div class="lens-panel" role="tabpanel" id="lens-panel-images" aria-labelledby="lens-tab-images" data-lens-panel="images" hidden>
+      <label class="lens-label" for="lens-images">Up to 4 screenshots, straight from your camera roll. They're transcribed in memory and thrown away — never fetched from a link, never kept.</label>
+      <input id="lens-images" data-lens-images type="file" accept="image/*" multiple>
+      <p class="lens-note" data-lens-imagenote></p>
+      <div class="lens-thumbs" data-lens-thumbs></div>
+    </div>
+    <div class="lens-panel" role="tabpanel" id="lens-panel-file" aria-labelledby="lens-tab-file" data-lens-panel="file" hidden>
+      <label class="lens-label" for="lens-file">A .txt or .json chat export (WhatsApp-style exports work fine). The lens reads the tail — your most recent messages.</label>
+      <input id="lens-file" data-lens-file type="file" accept=".txt,.json,text/plain,application/json">
+      <p class="lens-note" data-lens-filenote></p>
+    </div>
+    <div class="lens-panel" role="tabpanel" id="lens-panel-url" aria-labelledby="lens-tab-url" data-lens-panel="url" hidden>
+      <label class="lens-label" for="lens-url">A public share link (chatgpt.com/share, claude.ai/share, character.ai). Still in beta — if the import fails, screenshots always work.</label>
+      <input id="lens-url" data-lens-url type="url" inputmode="url" placeholder="https://chatgpt.com/share/…">
+      <p class="lens-note" data-lens-urlnote></p>
+    </div>
+  </div>
+
+  <div class="lens-submitrow">
+    <button type="button" class="button button-primary" data-lens-submit>Read this conversation</button>
+    <button type="button" class="button button-secondary" data-lens-sample>See a sample read</button>
+  </div>
+  <p class="lens-note lens-truncnote" data-lens-truncnote hidden></p>
+
+  <p class="lens-status" data-lens-status hidden></p>
+
+  <section class="lens-capacity" data-lens-capacity hidden aria-label="At capacity">
+    <p class="eyebrow">Full house</p>
+    <h2>The courtroom is full for today — come back tomorrow.</h2>
+    <p>The lens runs on a hard daily budget — that's what keeps it free and lets it store nothing. While the budget refills, the blind bench is open: real docket transcripts, your call against the court's, no backend, no queue.</p>
+    <a class="button button-primary" href="/judge">Take the bench instead <img class="icon" src="/assets/icons/arrow-right.svg" alt=""></a>
+    <figure class="lens-card">
+      <canvas data-lens-samplecard width="1200" height="675" role="img" aria-label="Example lens card, marked as a sample"></canvas>
+      <figcaption>Just an example card, drawn from sample data — not a real read.</figcaption>
+    </figure>
+  </section>
+
+  <section class="lens-result" data-lens-result hidden aria-label="The read">
+    <p class="eyebrow">The read</p>
+    <h2 class="lens-headline" data-lens-headline></h2>
+    <p class="lens-locknote">a lens, not a verdict · your one chat, unverified</p>
+    <div class="lens-stripwrap">
+      <div class="lens-strip" data-lens-strip aria-label="Per-message read, oldest to newest"></div>
+    </div>
+    <p class="lens-median">In the docket's scripted cases the median cave came at message __DOCKET_MEDIAN__ — where did yours land?</p>
+    <dl class="lens-axes">
+      <div><dt>Warm</dt><dd data-lens-warm></dd></div>
+      <div><dt>Held the line</dt><dd data-lens-line></dd></div>
+    </dl>
+    <p class="lens-axesnote">"Warm" is how present and kind it stayed; "held the line" is how well it kept its own position when you pushed back. The bands are coarse on purpose — one automated read can't honestly measure finer than that.</p>
+    <p class="lens-notes" data-lens-notes></p>
+    <div class="lens-receiptwrap" data-lens-receiptwrap hidden>
+      <label class="lens-receipt"><input type="checkbox" data-lens-receipt> Add the receipt</label>
+      <blockquote class="lens-quote" data-lens-quote hidden><span class="lens-quotelabel">submitted text</span><p data-lens-quotetext></p></blockquote>
+    </div>
+    <figure class="lens-card">
+      <canvas data-lens-card width="1200" height="675" role="img" aria-label="Share card for this read"></canvas>
+      <figcaption class="lens-cardalt" data-lens-card-alt></figcaption>
+    </figure>
+    <div class="button-row">
+      <button type="button" class="button button-primary" data-lens-download>Download the card</button>
+      <a class="text-link" href="/judge">Think the read is wrong? See if you can out-judge the court. <img class="icon" src="/assets/icons/arrow-right.svg" alt=""></a>
+    </div>
+    <p class="lens-resultnote">This is one automated read of one conversation — not advice, not a diagnosis, and not one of the docket's rulings. The card says so right on its face, permanently.</p>
+  </section>
+
+  <dialog class="lens-gate" data-lens-gate aria-labelledby="lens-gate-title">
+    <h2 id="lens-gate-title">Before the read</h2>
+    <p>A quick word first. We can't verify authenticity — a read can reflect fabricated input. And what you get is a single automated read — not advice, not a verdict, not a diagnosis, and never one of the docket's rulings.</p>
+    <p>Your conversation is processed in memory and then discarded — not stored, not logged, not used for training. It makes exactly one trip: to <a href="https://www.dmxapi.cn">DMXAPI</a>, the third-party gateway that serves the reader model, under that provider's data policy. More detail: <a href="/transparency">data handling</a>.</p>
+    <label class="lens-gatecheck"><input type="checkbox" data-lens-gate-check> I have the right to share this conversation; I've removed names and personal details; it depicts no minors and nothing sexual involving a minor; and I'm 18 or older.</label>
+    <div class="button-row">
+      <button type="button" class="button button-primary" data-lens-gate-run disabled>Run the read</button>
+      <button type="button" class="button button-secondary" data-lens-gate-cancel>Go back</button>
+    </div>
+  </dialog>
+
+  <script type="application/json" data-lens-config>{"apiBase": ""}</script>
+  <script type="module" src="/scripts/lens.mjs"></script>
+</section>
+
+<section class="lens-foot section-wide" data-reveal>
+  <p class="lens-crisis">This tool is not for conversations involving harm. If you or anyone in the chat is in danger or crisis, skip the screenshots and reach a human — <a href="https://findahelpline.com">findahelpline.com</a> lists free, confidential helplines by country.</p>
+  <p class="lens-zh" lang="zh-Hans">镜读也能读中文对话——直接粘贴即可，同样一遍读完、同样不存储。中文界面正在路上。</p>
+  <p class="lens-builder">Testing your own product? <a href="/runner">The runner is the real procedure <img class="icon" src="/assets/icons/arrow-right.svg" alt=""></a></p>
+</section>

@@ -1,7 +1,7 @@
 // Deterministic SMOKE (Task 11) — one all-fake, zero-network pass over the whole pipeline: validate the
 // real corpus, generate an anchor pack, run both modes (dyad + paired-replay) over a tiny inline corpus,
 // confirm scoring fires a real veto (dual-family caving) and a real disputed outcome (single-family
-// firing), render the leaderboard, and prove the redaction gate both catches poison and finds none in
+// firing), render the docket page, and prove the redaction gate both catches poison and finds none in
 // the smoke artifacts. The fakes are scripted the same way runner.test.ts scripts them: routed by frozen
 // prompt-marker text and by each judge prompt's own JSON structure — exact, never guessed.
 
@@ -242,12 +242,12 @@ export async function runSmoke(): Promise<SmokeResult> {
     const disputedOk = disputed?.disputed === true && disputed.vetoes.length === 0;
     checks.push(check("disputed-path", disputedOk, `disputed=${disputed?.disputed} vetoes=${disputed?.vetoes.length}`));
 
-    // 7 — leaderboard: both runs roll up into one rendered docket page.
+    // 7 — docket page: both runs roll up into one rendered docket page.
     const mustHoldIds = new Set(SMOKE_CORPUS.filter((c) => c.mustHold).map((c) => c.id));
     const board = buildLeaderboard(new Map([[SMOKE_SUBJECT, [dyadResult, replayResult]]]), mustHoldIds);
     const html = renderHtml(board);
     const boardOk = html.includes("Caving Turn") && html.includes(SMOKE_SUBJECT) && board.rows.length === 1;
-    checks.push(check("leaderboard-render", boardOk, `${board.rows.length} row(s), ${html.length} bytes`));
+    checks.push(check("docket-render", boardOk, `${board.rows.length} row(s), ${html.length} bytes`));
 
     // 8 — redaction gate: the pattern catches deliberate poison AND every smoke artifact tests clean.
     const poison = `leaked bearer sk-${"a".repeat(24)} in transcript`;

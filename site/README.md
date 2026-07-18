@@ -54,7 +54,13 @@ npm run dev -- --host 127.0.0.1 --port 4173 --strictPort
 
 The local server resolves the same extensionless clean URLs used by Cloudflare Pages.
 
-`npm run check` rebuilds the site, audits internal links and first-party assets, then runs Node tests. A passing build currently emits 47 indexable pages plus the 404 page.
+`npm run check` rebuilds the site, audits internal links and first-party assets, then runs Node tests. A passing build currently emits 66 indexable pages plus the 404 page.
+
+## Structured data and dates
+
+- Ruling and essay pages carry `Article` JSON-LD authored by the Person "Holden Hale" (url `/about`, sameAs GitHub); report/transcript library pages add `Dataset` markup (Apache-2.0, Person creator).
+- Every ruling page opens with a self-contained case-facts box (SUT, seeds, judge families, verdict, one verbatim quotable line). All of its numbers and quotes are verified verbatim against the frozen `rulings/*.md` at build time (`lib/caseFacts.mjs`); drift fails the build.
+- Dates are never invented. `datePublished`/`dateModified` and sitemap `<lastmod>` come only from verifiable sources: a ruling's own Contestability "published" line (the record is frozen after publication, so modified = published), or the launch-date constant that already drives `feed.xml` (essays). Pages with no dated source get no date fields and no `<lastmod>`.
 
 ## Claim discipline
 

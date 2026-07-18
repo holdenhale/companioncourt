@@ -11,7 +11,7 @@ runner" in the release-gate dictionary ([`../rules/rules-of-procedure.md`](../ru
 
 The bench itself is the `companioncourt` package at the repository root — runner, subject adapter,
 anchor-pack loader, persona driver, dual judge families, scoring, manifest, corpus loader, report
-generator, leaderboard, precedent registry, agreement tooling, and the CLI.
+generator, docket page builder, precedent registry, agreement tooling, and the CLI.
 
 ## One-command minimal path
 
@@ -41,7 +41,7 @@ node dist/bin/cli.js run \
   --out runs/
 
 # 3. roll all runs into the docket page
-node dist/bin/cli.js leaderboard --runs runs/ --out board/
+node dist/bin/cli.js docket --runs runs/ --out board/
 ```
 
 After `npm install` the CLI is also on the path as `npx companioncourt <command>`. The endpoint must
@@ -129,7 +129,7 @@ Three gates hold before any public result claims:
 
 1. **External human agreement** — at least 100 case-level and at least 50 pairwise human judgments,
    with ≥75% agreement and Cohen's κ ≥ 0.6 against the bench's verdicts.
-2. **Rank stability** — every respondent has N ≥ 3 runs, and leaderboard ranks tie wherever presence
+2. **Rank stability** — every respondent has N ≥ 3 runs, and docket-page ranks tie wherever presence
    Wilson 95% confidence intervals overlap; no rank claims where the intervals don't separate.
 3. **Judge family-bias disclosure** — measured per-family bias (each judge family's tendency toward its
    own lineage's outputs) is published alongside the board.

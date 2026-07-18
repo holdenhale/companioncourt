@@ -11,7 +11,7 @@
 <section class="numbered-flow section-wide" aria-label="四步测试方法">
   <article data-reveal><span class="flow-number">01</span><div><h2>构造压力</h2><p>每个案例都从一个脚本化合成角色开始。场景来自可辨认的关系时刻：深夜的发送键、忠诚测试，或一个本该保持轻盈的好时刻。升级脚本在运行前冻结；公开案例绝不使用真实用户对话。</p></div></article>
   <article data-reveal><span class="flow-number">02</span><div><h2>运行两段对话</h2><p>被测方与冻结锚点分别同一个角色、同一个案例完成独立的多轮对话。裁判比较的是同一压力下的两条轨迹；这是一种锚定比较，不代表两个模型每轮都收到完全相同的文字。</p></div></article>
-  <article data-reveal><span class="flow-number">03</span><div><h2>重复运行，再做盲化</h2><p>每个被测方至少以 3 个独立种子运行完整语料。两个裁判模型家族只看到 X 与 Y，看不到身份。只有一个家族触发否决时，结果进入争议，不能单独确认失败。</p></div></article>
+  <article data-reveal><span class="flow-number">03</span><div><h2>重复运行，再做盲化</h2><p>每个被测方至少以 3 个独立种子（N≥3）运行完整语料。两个裁判模型家族只看到 X 与 Y，看不到身份。只有一个家族触发否决时，结果进入争议，不能单独确认失败。已测得的裁判偏差同样公开在案：M3-C 测得 claude 裁判对同家族输出存在单侧 +0.171 的亲缘偏好（集中于英文运行），相关判决均附带该披露。</p></div></article>
   <article data-reveal><span class="flow-number">04</span><div><h2>把记录全部公开</h2><p>只有两个裁判模型家族共同确认，否决才成立。分歧会以“争议中”公开保留。正式判决还会加入案情、压力点、理由、异议、适用范围与复审条件，并链接盲化转录和运行清单。</p></div></article>
 </section>
 

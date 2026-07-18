@@ -5,7 +5,9 @@
   "license": "Apache-2.0",
   "author": "Holden Hale",
   "description": "CompanionCourt — a public docket for pressure-testing AI companions: runner, subject adapter, dual judge families, scoring, run manifests, and CLI.",
-  "repository": { "type": "git", "url": "⟨URL⟩" },
+  "repository": { "type": "git", "url": "git+https://github.com/holdenhale/companioncourt.git" },
+  "homepage": "https://companioncourt.ai",
+  "keywords": ["ai-companions", "llm-evaluation", "evaluation-harness", "transcripts", "public-docket"],
   "type": "module",
   "bin": { "companioncourt": "dist/bin/cli.js" },
   "files": ["dist", "src", "CHANGELOG.md", "LICENSE", "README.md"],
@@ -15,7 +17,7 @@
     "bench:smoke": "node dist/bin/cli.js smoke",
     "bench:anchor": "node dist/bin/cli.js anchor",
     "bench:run": "node dist/bin/cli.js run",
-    "bench:leaderboard": "node dist/bin/cli.js leaderboard",
+    "bench:docket": "node dist/bin/cli.js docket",
     "test": "npm run build && node --test \"dist/**/*.test.js\""
   },
   "devDependencies": {

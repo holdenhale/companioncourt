@@ -4,6 +4,16 @@ The CompanionCourt type contract (`src/types.ts`) is frozen: changing it is a **
 recorded here with a version bump — never a silent refactor. Manifests carry the package version as
 `benchVersion`, so every persisted run names the contract it was written under.
 
+## Unreleased
+
+- **CLI subcommand renamed: `leaderboard` → `docket`** — the documented name for rolling run files
+  into the docket page is now `companioncourt docket`; the old subcommand name still works as an
+  undocumented alias, so existing scripts do not break. Output filenames are unchanged. The npm
+  script `bench:leaderboard` is renamed to `bench:docket` (no alias).
+- Package metadata: real `repository`/`homepage` URLs and a `keywords` list in `package.json`;
+  new `CITATION.cff` at the repository root; README header now carries the canonical site link
+  and a license badge. No contract change; `types.ts` untouched.
+
 ## 0.2.1 — 2026-07-08 — judge call hardening (no contract change)
 
 Judge call mechanics hardened (response_format + tolerant extraction + one corrective retry);

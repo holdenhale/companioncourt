@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+type: software
+title: "CompanionCourt: a public docket for pressure-testing AI companions"
+authors:
+  - family-names: Hale
+    given-names: Holden
+    email: holden@companioncourt.ai
+license: Apache-2.0
+version: 0.2.1
+date-released: "2026-07-11"
+repository-code: "https://github.com/holdenhale/companioncourt"
+url: "https://companioncourt.ai"

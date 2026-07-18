@@ -2,8 +2,9 @@
 // CompanionCourt CLI (Task 11) — thin wiring only: flag parsing (node:util parseArgs, zero deps) around
 // the package's modules. Five subcommands: `smoke` (deterministic all-fake pipeline pass), `anchor`
 // (generate + freeze the anchor pack), `run` (probe seed honoring, run the bench, patch the manifest
-// with the live probe + provider observations, persist), `leaderboard` (roll run files into the docket
-// page), `report` (per-defendant diagnostic report per institution §5). House discipline: the --key
+// with the live probe + provider observations, persist), `docket` (roll run files into the docket
+// page; `leaderboard` is kept as an undocumented alias so existing scripts keep working), `report`
+// (per-defendant diagnostic report per institution §5). House discipline: the --key
 // VALUE is never echoed anywhere — usage shows placeholders only, error output is scrubbed — and every
 // file written is redaction-checked first.
 
@@ -43,7 +44,7 @@ Usage:
                      [--persona-model <m>] [--judge-a <m>] [--judge-b <m>]
                      [--sut-provider-version-field <v>] [--persona-provider-version-field <v>]
                      [--judge-a-provider-version-field <v>] [--judge-b-provider-version-field <v>]
-  companioncourt leaderboard --runs <dir> --out <dir>
+  companioncourt docket --runs <dir> --out <dir>
   companioncourt report --runs <dir> --out <dir> [--subject <model>] [--rulings <file.json>]
 
 Provider-version-field flags record what is honestly known about each actor's provider snapshot in the
@@ -299,9 +300,9 @@ async function cmdRun(args: string[]): Promise<number> {
   return 0;
 }
 
-// —— leaderboard ——
+// —— docket ——
 
-async function cmdLeaderboard(args: string[]): Promise<number> {
+async function cmdDocket(args: string[]): Promise<number> {
   const { values } = parseArgs({
     args,
     options: { runs: { type: "string" }, out: { type: "string" } }
@@ -331,7 +332,7 @@ async function cmdLeaderboard(args: string[]): Promise<number> {
   mkdirSync(outDir, { recursive: true });
   writeChecked(join(outDir, "leaderboard.json"), JSON.stringify(board, null, 2));
   writeChecked(join(outDir, "leaderboard.html"), renderHtml(board));
-  console.log(`leaderboard over ${files.length} run(s), ${board.rows.length} subject row(s)`);
+  console.log(`docket page over ${files.length} run(s), ${board.rows.length} subject row(s)`);
   console.log(`written to ${join(outDir, "leaderboard.json")} and ${join(outDir, "leaderboard.html")}`);
   return 0;
 }
@@ -412,8 +413,9 @@ async function main(): Promise<number> {
       return cmdAnchor(rest);
     case "run":
       return cmdRun(rest);
-    case "leaderboard":
-      return cmdLeaderboard(rest);
+    case "docket":
+    case "leaderboard": // undocumented alias for the pre-rename subcommand name — external scripts keep working
+      return cmdDocket(rest);
     case "report":
       return cmdReport(rest);
     default:

@@ -1,0 +1,37 @@
+<!-- TITLE: You be the judge — the CompanionCourt blind bench -->
+<!-- DESC: Six real excerpts from published rulings, blinded, verdicts sealed. Make your call — held or caved — then see what the court ruled, and why. -->
+
+<section class="subpage-hero judge-hero section-wide" data-reveal>
+  <p class="eyebrow">The blind bench · no uploads, no backend</p>
+  <h1 class="display">You be<br>the judge.</h1>
+  <p class="subpage-lede">Here are six exchanges from the public docket, shown the way the judges saw them — blinded, verdict sealed. Make your call on each one: did the companion hold the line, or cave? Once you've voted, the ruling unseals right under your call.</p>
+  <p class="judge-provenance">Every excerpt is quoted verbatim from a published ruling; elisions are marked […]. The whole bench runs on the public record — nothing you do here gets sent anywhere.</p>
+</section>
+
+<section class="judge-app section-wide" data-judge-app aria-label="Blind bench">
+  <noscript><p class="judge-noscript">The bench needs JavaScript to keep the verdicts sealed until you vote. The unblinded record is always open: <a href="/rulings/">read the rulings directly</a>.</p></noscript>
+  <p class="judge-progress" data-judge-progress aria-live="polite"></p>
+  <ol class="judge-list" data-judge-list></ol>
+
+  <section class="judge-final" data-judge-final hidden aria-label="Your bench record">
+    <p class="eyebrow">Your bench record</p>
+    <h2 data-judge-score></h2>
+    <p>The court made its calls from three seeded runs and two blinded judge families per case — you just made yours from a single excerpt. That gap is exactly why the docket exists.</p>
+    <figure class="lens-card">
+      <canvas data-judge-card width="1200" height="675" role="img" aria-label="Blind bench score card"></canvas>
+      <figcaption class="lens-cardalt" data-judge-card-alt></figcaption>
+    </figure>
+    <div class="button-row">
+      <button type="button" class="button button-secondary" data-judge-download>Download your card</button>
+      <a class="button button-primary" href="/check">Now read your own conversation <img class="icon" src="/assets/icons/arrow-right.svg" alt=""></a>
+    </div>
+  </section>
+
+  <script type="module" src="/scripts/judge.mjs"></script>
+</section>
+
+<section class="closing-cta section-wide" data-reveal>
+  <p class="eyebrow">The 30-second read</p>
+  <h2 class="display">Now read yours.</h2>
+  <a class="button button-primary" href="/check">Run the lens on one conversation <img class="icon" src="/assets/icons/arrow-right.svg" alt=""></a>
+</section>

@@ -27,6 +27,16 @@
   </div>
 </section>
 
+<section class="split-feature section-wide" aria-labelledby="lens-data-title">
+  <div class="section-heading" data-reveal><p class="eyebrow">The lens · data handling</p><h2 class="display" id="lens-data-title">One pass.<br>Nothing kept.</h2></div>
+  <div class="feature-grid">
+    <article data-reveal><img class="panel-icon" src="/assets/icons/lock-keyhole.svg" alt=""><h3>In memory, then gone</h3><p>A conversation handed to the <a href="/check">lens</a> is processed in memory and discarded: not stored, not written to logs, not used for training. The share card is drawn in your own browser — the server never sees or keeps a card.</p></article>
+    <article data-reveal><img class="panel-icon" src="/assets/icons/arrow-up-right.svg" alt=""><h3>The one hop that leaves</h3><p>The text transits DMXAPI, the third-party gateway serving the requested reader model, under that provider's data policy — disclosed on the page before every read. "Requested" is the honest word: the provider may route or re-version the model behind the pin.</p></article>
+    <article data-reveal><img class="panel-icon" src="/assets/icons/scan-eye.svg" alt=""><h3>What we count, not what you wrote</h3><p>Abuse and budget controls keep aggregate counters only — request counts and a salted hash of the network prefix, in a strongly consistent store. To absorb replay floods the lens may cache a content hash mapped to the finished read for a short TTL. Never the conversation itself.</p></article>
+    <article data-reveal><img class="panel-icon" src="/assets/icons/eye.svg" alt=""><h3>A read, not a ruling</h3><p>Lens output is a single automated read of one unverified, user-submitted conversation — it never enters the docket, and every card carries that provenance on its face. Rulings still come only from the slow path: seeded runs, blinded dual-family judgment, a manifest.</p></article>
+  </div>
+</section>
+
 <section class="closing-cta section-wide" data-reveal>
   <p class="eyebrow">Follow the evidence</p>
   <h2 class="display">Claim → ruling → transcript.</h2>

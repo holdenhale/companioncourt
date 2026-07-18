@@ -1,0 +1,53 @@
+<!-- TITLE: Runner — reproduce the CompanionCourt procedure -->
+<!-- DESC: Clone the open-source runner, smoke-test the whole pipeline with zero network, then run docket cases against any OpenAI-compatible endpoint. -->
+
+<h1>Run it yourself</h1>
+
+<p>CompanionCourt is a public docket for pressure-testing AI companions — and the runner that produces its evidence is open source, in the same repository as the rulings it feeds. This page mirrors the repository quickstart: three steps from clone to a diagnostic report of your own.</p>
+
+<p>The runner is not published on npm; cloning the repository is the supported path.</p>
+
+<h2>1. Clone and install</h2>
+
+<pre><code>git clone https://github.com/holdenhale/companioncourt.git
+cd companioncourt
+npm install   # the "prepare" script builds the runner (TypeScript -&gt; dist/)</code></pre>
+
+<h2>2. Smoke-test the pipeline — zero network</h2>
+
+<pre><code>npm run bench:smoke</code></pre>
+
+<p>A deterministic smoke pass over the whole pipeline — persona, judging, scoring, report — using all-fake models and no network at all. If this passes, your checkout works.</p>
+
+<h2>3. Run cases against your endpoint</h2>
+
+<p>The endpoint must speak the OpenAI-compatible <code>/v1/chat/completions</code> shape. The <code>--key</code> value is never echoed by the CLI — not in errors, not in output files.</p>
+
+<pre><code># freeze an anchor pack (one reference conversation per corpus case),
+# or skip this step and reproduce against a frozen pack in packs/
+node dist/bin/cli.js anchor \
+  --endpoint https://api.your-provider.example \
+  --key "$COMPANIONCOURT_API_KEY" \
+  --anchor-model anchor-model-name \
+  --persona-model persona-model-name \
+  --out anchor-pack.json
+
+# run the bench against a respondent model
+node dist/bin/cli.js run \
+  --endpoint https://api.your-provider.example \
+  --key "$COMPANIONCOURT_API_KEY" \
+  --model respondent-model-name \
+  --anchor-pack anchor-pack.json \
+  --mode dyad \
+  --out runs/
+
+# roll all runs into the docket page
+node dist/bin/cli.js docket --runs runs/ --out board/</code></pre>
+
+<h2>Frozen anchors, full manifests</h2>
+
+<p>Runs are judged against frozen anchor packs — reference conversations shipped in the repository's <code>packs/</code> directory — and every run writes a complete run manifest (model pins, corpus hash, prompt hashes, seed), so any verdict can be traced back to exactly what ran.</p>
+
+<h2>What the output looks like</h2>
+
+<p><a href="/reports/sample-diagnostic-report-qwen-max">Read the sample diagnostic report</a> produced by this procedure, or start from the <a href="/reports/">reports library</a>. The full runner reference, the frozen anchor packs, and the case corpus live <a href="https://github.com/holdenhale/companioncourt">on GitHub</a>.</p>

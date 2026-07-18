@@ -1,0 +1,14 @@
+{
+  "name": "companioncourt-lens",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CompanionCourt conversation lens — Cloudflare Worker for POST /api/lens: a single-pass, zero-storage read of one user-submitted conversation. A lens, not the docket's procedure.",
+  "scripts": {
+    "test": "node --test \"test/*.test.ts\"",
+    "typecheck": "../node_modules/.bin/tsc -p tsconfig.json",
+    "probe:reader": "node scripts/probe-reader.mjs",
+    "probe:vision": "node scripts/probe-vision.mjs"
+  },
+  "engines": { "node": ">=23.7.0" }
+}

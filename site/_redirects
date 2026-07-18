@@ -1,0 +1,10 @@
+# Cloudflare Pages redirects — stable /go/* entry paths for off-site placements (302).
+# Measurement paths only: each maps one channel to its landing page and stays out of
+# search indexes (robots.txt disallows /go/).
+/go/bensbites /rulings/rd-2026-001 302
+/go/reddit /rulings/rd-2026-003 302
+/go/ethicalads /rulings/rd-2026-002 302
+/go/pod /rulings/rd-2026-004 302
+/go/run /runner 302
+# Permanent short alias for the lens page (burned into share cards as a hook).
+/caved /check 301
