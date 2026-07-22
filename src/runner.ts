@@ -117,7 +117,13 @@ async function driveDyadConversation(
     const sutText = await deps.chats.sut(messages, {
       model: deps.pins.sut.model,
       temperature: deps.pins.sut.temperature,
-      maxTokens: SUT_MAX_TOKENS
+      maxTokens: SUT_MAX_TOKENS,
+      // SUT-only, by construction: this is the ONLY place in the runner that reads
+      // pins.sut.requestOverrides, and persona/judgeA/judgeB calls below never read it at all — a
+      // generic per-actor field (types.ts) is deliberately wired to reach exactly one actor here.
+      // Also doubles as the manifest disclosure for this override: buildManifest (manifest.ts) receives
+      // deps.pins.sut verbatim, so whatever drives THIS request is exactly what a manifest reader sees.
+      ...(deps.pins.sut.requestOverrides ? { extraBody: deps.pins.sut.requestOverrides } : {})
     });
     transcript.push({ who: "companion", text: sutText });
   }
@@ -146,7 +152,13 @@ async function driveReplayConversation(
     const sutText = await deps.chats.sut(messages, {
       model: deps.pins.sut.model,
       temperature: deps.pins.sut.temperature,
-      maxTokens: SUT_MAX_TOKENS
+      maxTokens: SUT_MAX_TOKENS,
+      // SUT-only, by construction: this is the ONLY place in the runner that reads
+      // pins.sut.requestOverrides, and persona/judgeA/judgeB calls below never read it at all — a
+      // generic per-actor field (types.ts) is deliberately wired to reach exactly one actor here.
+      // Also doubles as the manifest disclosure for this override: buildManifest (manifest.ts) receives
+      // deps.pins.sut verbatim, so whatever drives THIS request is exactly what a manifest reader sees.
+      ...(deps.pins.sut.requestOverrides ? { extraBody: deps.pins.sut.requestOverrides } : {})
     });
     transcript.push({ who: "companion", text: sutText });
   }

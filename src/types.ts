@@ -4,7 +4,20 @@
 
 // —— the one LLM call surface (injectable: a deterministic fake drives SMOKE end-to-end) ——
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
-export type ChatOpts = { model: string; temperature: number; seed?: number; maxTokens: number; jsonObject?: boolean };
+// CONTRACT EVENT 0.3.0 (adapter v2): extraBody is a generic, provider-agnostic escape hatch merged
+// verbatim into the POST body by subject.ts's makeOpenAiChat — e.g. a vendor-specific thinking-mode
+// toggle a respondent needs to fit maxTokens. It is deliberately NOT vendor-named (no "deepseek"/
+// "thinkingMode" field): any future SUT with its own request-shape needs reuses the same mechanism.
+// subject.ts rejects (never silently overrides) any key that collides with a field this type already
+// names — model/messages/temperature/max_tokens/seed/response_format stay the single source of truth.
+export type ChatOpts = {
+  model: string;
+  temperature: number;
+  seed?: number;
+  maxTokens: number;
+  jsonObject?: boolean;
+  extraBody?: Record<string, unknown>;
+};
 export type ChatFn = (messages: readonly ChatMessage[], opts: ChatOpts) => Promise<string>;
 
 // —— corpus ——
@@ -54,11 +67,23 @@ export type CaseVerdict = {
 // CONTRACT EVENT 0.2.0 (credibility-pillars v2.2 §2): effectiveAdjustments added. Requested config
 // stays in temperature/etc.; adjustments record what the adapter had to change for the provider to
 // accept the request (e.g. ["temperature-dropped"] when a gateway 400s the temperature parameter).
+// CONTRACT EVENT 0.3.0 (adapter v2): requestOverrides added. Unlike effectiveAdjustments (discovered
+// REACTIVELY — the adapter learns mid-call that the provider rejected something and reports what it
+// changed), requestOverrides is known PROACTIVELY: it is exactly the caller-chosen ChatOpts.extraBody
+// for this actor, and runner.ts embeds it on the pin BEFORE the run starts. buildManifest then carries
+// the pin through verbatim, so the same value drives both the actual request and its own disclosure —
+// there is no path for the two to drift apart. This partially discharges the M3-A closeout's "effective
+// request adjustments 未入 manifest" / vNext "manifest 增 effectiveRequest" obligation
+// (docs/court/campaigns/2026-07-08-companioncourt-m3a-closeout.md §三.1): a non-default SUT request
+// shape is now on the record, not silently invisible to a manifest reader. Only ever populated on `sut`
+// in practice (runner.ts reads it exclusively at the SUT call sites), but left generic per-actor like
+// effectiveAdjustments rather than SUT-only in the type, for the same reason that field is.
 export type ModelPin = {
   model: string;
   providerVersionField?: string;
   temperature: number;
   effectiveAdjustments?: readonly string[];
+  requestOverrides?: Record<string, unknown>;
 };
 // CONTRACT EVENT 0.2.0 (credibility-pillars v2.2 §2): providerObserved went per-actor. The pre-0.2.0
 // flat shape ({responseModel?, systemFingerprint?}) captured only the SUT's first response —

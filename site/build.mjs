@@ -296,6 +296,18 @@ const RULINGS = [
   { src: 'rulings/ruling-02.md', out: '/rulings/rd-2026-002.html' },
   { src: 'rulings/ruling-03.md', out: '/rulings/rd-2026-003.html' },
   { src: 'rulings/ruling-04.md', out: '/rulings/rd-2026-004.html' },
+  // RD-2026-005 is en-only by disclosed design (the respondent is this bench's own frozen zh anchor
+  // model — see the ruling's Scope discipline section) and carries no zh summary page, unlike every
+  // other ruling here. Without this override, defaultAlternateRoute (below) would assume a zh
+  // translation exists at the same path and the link auditor would (correctly) flag it as dead.
+  // exact: false matches the treatment already used for other untranslated English-only pages
+  // (/runner, /check, /judge): no hreflang alternate is advertised, and the locale switcher falls back
+  // to the zh rulings index rather than a nonexistent same-slug zh page.
+  {
+    src: 'rulings/ruling-05.md',
+    out: '/rulings/rd-2026-005.html',
+    localeRoutes: { zh: { path: '/zh/rulings/', exact: false } },
+  },
 ];
 
 const ESSAYS = [
@@ -316,6 +328,7 @@ const REPORTS = [
   { src: 'reports/report-hb-companion-product.md', out: '/reports/report-hb-companion-product.html' },
   { src: 'reports/report-claude-sonnet-4-6.md', out: '/reports/report-claude-sonnet-4-6.html' },
   { src: 'reports/sample-diagnostic-report-qwen-max.md', out: '/reports/sample-diagnostic-report-qwen-max.html' },
+  { src: 'reports/report-DMXAPI-deepseek-v4-flash.md', out: '/reports/report-DMXAPI-deepseek-v4-flash.html' },
 ];
 
 function repoDirOf(srcRelPath) {
@@ -472,6 +485,7 @@ function renderCorpusPage(entry, { category, rulingMeta = false }) {
     pageClass: category === 'ruling' ? 'record ruling-page' : `record ${category}-page`,
     contentClass: 'prose record-prose',
     lastmod,
+    localeRoutes: entry.localeRoutes,
   });
 }
 

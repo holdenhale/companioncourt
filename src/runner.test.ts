@@ -8,7 +8,7 @@ import type { RunDeps } from "./runner.js";
 import { expandVariants } from "./corpus.js";
 import { anchorPackHash } from "./anchor.js";
 import type { AnchorPack } from "./anchor.js";
-import type { BenchCase, ChatFn, ChatMessage, ModelPin } from "./types.js";
+import type { BenchCase, ChatFn, ChatMessage, ChatOpts, ModelPin } from "./types.js";
 
 // —— a 2-case inline mini corpus: one solo case (hold-line, must-hold, caving-eligible) + one
 // priorSession case (reflection, a memory class) — mirrors the shape of the real corpus-v1 cases
@@ -144,6 +144,16 @@ function makeJudgeFake(): { chat: ChatFn; prompts: string[] } {
     return JSON.stringify({ fit: "fit" });
   };
   return { chat, prompts };
+}
+
+/** Wraps a ChatFn to also record every call's `opts` param, for asserting what extraBody actually reached it. */
+function withOptsSpy(chat: ChatFn): { chat: ChatFn; optsCalls: ChatOpts[] } {
+  const optsCalls: ChatOpts[] = [];
+  const wrapped: ChatFn = async (messages, opts) => {
+    optsCalls.push(opts);
+    return chat(messages, opts);
+  };
+  return { chat: wrapped, optsCalls };
 }
 
 function baseFixedDeps(overrides: Partial<RunDeps>): RunDeps {
@@ -336,4 +346,50 @@ test("seeded X/Y blinding is deterministic: identical fakes + seed produce ident
   const result1 = await runBench(buildDeterministicDeps());
   const result2 = await runBench(buildDeterministicDeps());
   assert.deepEqual(result1, result2);
+});
+
+// —— (h) requestOverrides: SUT-only extraBody threading + manifest disclosure (CONTRACT EVENT 0.3.0) ——
+
+test("pins.sut.requestOverrides reaches the SUT's ChatOpts as extraBody on every SUT call, never persona/judges, and lands on the manifest verbatim", async () => {
+  const overrides = { thinking_mode: "disabled" };
+  const sutSpy = withOptsSpy(makeSutFake(["sut line one", "sut line two"]).chat);
+  const personaSpy = withOptsSpy(
+    makePersonaFake(["persona line 1", "persona line 2", "persona line 3", "persona line 4"])
+  );
+  const judgeASpy = withOptsSpy(makeJudgeFake().chat);
+  const judgeBSpy = withOptsSpy(makeJudgeFake().chat);
+
+  const deps = baseFixedDeps({
+    pins: { ...PINS, sut: { ...PINS.sut, requestOverrides: overrides } },
+    chats: { sut: sutSpy.chat, persona: personaSpy.chat, judgeA: judgeASpy.chat, judgeB: judgeBSpy.chat }
+  });
+
+  const result = await runBench(deps);
+
+  assert.ok(sutSpy.optsCalls.length > 0, "expected at least one SUT call");
+  for (const opts of sutSpy.optsCalls) {
+    assert.deepEqual(opts.extraBody, overrides, "every SUT call should carry the pin's requestOverrides as extraBody");
+  }
+  for (const opts of [...personaSpy.optsCalls, ...judgeASpy.optsCalls, ...judgeBSpy.optsCalls]) {
+    assert.equal(Object.hasOwn(opts, "extraBody"), false, "persona/judge calls must never see extraBody");
+  }
+  assert.deepEqual(result.manifest.sut.requestOverrides, overrides, "the manifest discloses exactly what was sent");
+});
+
+test("no requestOverrides on the sut pin means no extraBody key on any SUT call, and manifest.sut.requestOverrides stays undefined", async () => {
+  const sutSpy = withOptsSpy(makeSutFake(["sut line one", "sut line two"]).chat);
+  const deps = baseFixedDeps({
+    chats: {
+      sut: sutSpy.chat,
+      persona: makePersonaFake(["persona line 1", "persona line 2", "persona line 3", "persona line 4"]),
+      judgeA: makeJudgeFake().chat,
+      judgeB: makeJudgeFake().chat
+    }
+  });
+
+  const result = await runBench(deps);
+
+  assert.ok(sutSpy.optsCalls.length > 0);
+  for (const opts of sutSpy.optsCalls) assert.equal(Object.hasOwn(opts, "extraBody"), false);
+  assert.equal(result.manifest.sut.requestOverrides, undefined);
 });

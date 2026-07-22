@@ -12,7 +12,7 @@ import { parseArgs } from "node:util";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { runSmoke } from "../smoke.js";
-import { makeOpenAiChat, probeSeedHonored } from "../subject.js";
+import { makeOpenAiChat, resolveSeedHonored } from "../subject.js";
 import { generateAnchorPack, anchorPackHash, saveAnchorPack, loadAnchorPack } from "../anchor.js";
 import { runBench } from "../runner.js";
 import { CORPUS_V1, CORPUS_VERSION, corpusHash } from "../corpus.js";
@@ -36,20 +36,28 @@ const USAGE = `CompanionCourt — a public docket for pressure-testing AI compan
 
 Usage:
   companioncourt smoke
-  companioncourt anchor --endpoint <url> --key <api-key> --anchor-model <m> --persona-model <m>
+  companioncourt anchor --endpoint <url> [--key <api-key>] --anchor-model <m> --persona-model <m>
                      [--lang en|zh] [--seed <s>] [--out <path>]
                      [--anchor-provider-version-field <v>] [--persona-provider-version-field <v>]
-  companioncourt run --endpoint <url> --key <api-key> --model <sut> --anchor-pack <path>
+  companioncourt run --endpoint <url> [--key <api-key>] --model <sut> --anchor-pack <path>
                      [--lang en|zh] [--mode dyad|paired-replay] [--seed <s>] [--out <dir>]
                      [--persona-model <m>] [--judge-a <m>] [--judge-b <m>]
                      [--sut-provider-version-field <v>] [--persona-provider-version-field <v>]
                      [--judge-a-provider-version-field <v>] [--judge-b-provider-version-field <v>]
+                     [--sut-request-overrides <json>]
   companioncourt docket --runs <dir> --out <dir>
   companioncourt report --runs <dir> --out <dir> [--subject <model>] [--rulings <file.json>]
 
 Provider-version-field flags record what is honestly known about each actor's provider snapshot in the
 manifest's ModelPins (e.g. "unavailable" when the gateway strips the model echo). --lang restricts the
 corpus to one language so anchor packs and runs can pair per-language anchors.
+
+--key may be omitted if COMPANIONCOURT_API_KEY is set in the environment instead (preferred — an
+env-only key never appears in argv/process listings the way a --key flag value does). --key still wins
+if both are given. --sut-request-overrides is a JSON object merged into the SUT's own request body only
+(e.g. a provider-specific thinking-mode toggle some respondent needs to fit inside its token budget); it
+may not set model/messages/temperature/max_tokens/seed/response_format, and it is recorded on the run
+manifest (manifest.sut.requestOverrides) so a reader can see the SUT wasn't called with a vanilla config.
 `;
 
 /** Validates and applies the optional --lang restriction to the corpus. */
@@ -75,12 +83,47 @@ function scrub(text: string): string {
   return out.replace(new RegExp(REDACTION_PATTERN.source, "gu"), "[redacted]");
 }
 
-class UsageError extends Error {}
+export class UsageError extends Error {}
 
 function requireFlag(values: Record<string, string | undefined>, flag: string): string {
   const v = values[flag];
   if (v === undefined || v === "") throw new UsageError(`missing required flag --${flag}`);
   return v;
+}
+
+// The env var name is already the documented convention in README.md's Quickstart (it showed
+// `--key "$COMPANIONCOURT_API_KEY"` before this fallback existed — this makes the env var alone
+// sufficient, so the key no longer has to touch argv at all for the common case). Exported so it can be
+// unit-tested (cli.test.ts) without exercising the rest of the CLI's process.argv-driven dispatch.
+export const API_KEY_ENV_VAR = "COMPANIONCOURT_API_KEY";
+
+/**
+ * Resolves the provider API key: an explicit --key wins when given (backward compatible with existing
+ * scripts); otherwise falls back to the COMPANIONCOURT_API_KEY environment variable. Never logged either
+ * way — the caller still pushes the resolved value into `secrets` for scrub() coverage.
+ */
+export function requireKey(values: Record<string, string | undefined>): string {
+  const fromFlag = values.key;
+  const key = fromFlag !== undefined && fromFlag !== "" ? fromFlag : process.env[API_KEY_ENV_VAR];
+  if (key === undefined || key === "") {
+    throw new UsageError(`missing required flag --key (or set ${API_KEY_ENV_VAR})`);
+  }
+  return key;
+}
+
+/** Parses --sut-request-overrides: a JSON object, or undefined when the flag was not given. */
+function parseSutRequestOverrides(raw: string | undefined): Record<string, unknown> | undefined {
+  if (raw === undefined) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new UsageError("--sut-request-overrides must be valid JSON");
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new UsageError("--sut-request-overrides must be a JSON object");
+  }
+  return parsed as Record<string, unknown>;
 }
 
 /** Redaction-checked file write: refuses (throws) rather than persist a tracked secret/endpoint shape. */
@@ -121,7 +164,7 @@ async function cmdAnchor(args: string[]): Promise<number> {
   });
   const v = values as Record<string, string | undefined>;
   const endpoint = requireFlag(v, "endpoint");
-  const key = requireFlag(v, "key");
+  const key = requireKey(v);
   secrets.push(key);
   const anchorModel = requireFlag(v, "anchor-model");
   const personaModel = requireFlag(v, "persona-model");
@@ -182,12 +225,13 @@ async function cmdRun(args: string[]): Promise<number> {
       "sut-provider-version-field": { type: "string" },
       "persona-provider-version-field": { type: "string" },
       "judge-a-provider-version-field": { type: "string" },
-      "judge-b-provider-version-field": { type: "string" }
+      "judge-b-provider-version-field": { type: "string" },
+      "sut-request-overrides": { type: "string" }
     }
   });
   const v = values as Record<string, string | undefined>;
   const endpoint = requireFlag(v, "endpoint");
-  const key = requireFlag(v, "key");
+  const key = requireKey(v);
   secrets.push(key);
   const sutModel = requireFlag(v, "model");
   const anchorPackPath = requireFlag(v, "anchor-pack");
@@ -197,6 +241,7 @@ async function cmdRun(args: string[]): Promise<number> {
   }
   const seed = v.seed ?? "0";
   const outDir = v.out ?? "runs";
+  const sutRequestOverrides = parseSutRequestOverrides(v["sut-request-overrides"]);
 
   // loadAnchorPack binds the pack to the CURRENT corpus hash — a stale pack refuses here, up front.
   const pack = loadAnchorPack(anchorPackPath, corpusHash());
@@ -204,8 +249,14 @@ async function cmdRun(args: string[]): Promise<number> {
   // Actor pins: persona/judges default to the pack's anchor model when not pinned explicitly. The
   // anchor pin comes from the FROZEN pack verbatim (including any providerVersionField recorded at
   // generation time) — the run must not rewrite what the pack attests about itself.
+  // sut.requestOverrides (contract event 0.3.0) is set HERE, before runBench ever starts — see
+  // runner.ts's SUT call sites and manifest.ts's verbatim pin passthrough for why that ordering is what
+  // makes this field double as honest manifest disclosure of what was actually sent.
   const pins: { sut: ModelPin; anchor: ModelPin; personaActor: ModelPin; judgeA: ModelPin; judgeB: ModelPin } = {
-    sut: pin(sutModel, 0.7, v["sut-provider-version-field"]),
+    sut: {
+      ...pin(sutModel, 0.7, v["sut-provider-version-field"]),
+      ...(sutRequestOverrides !== undefined ? { requestOverrides: sutRequestOverrides } : {})
+    },
     anchor: pack.anchor,
     personaActor: pin(v["persona-model"] ?? pack.anchor.model, 0.9, v["persona-provider-version-field"]),
     judgeA: pin(v["judge-a"] ?? pack.anchor.model, 0, v["judge-a-provider-version-field"]),
@@ -214,7 +265,11 @@ async function cmdRun(args: string[]): Promise<number> {
 
   // Live seed probe (subject.ts) on its own chat — runBench itself always records "unprobed". The
   // probe adapter is deliberately unobserved: providerObserved records BENCH-RUN responses only.
-  const seedHonored = await probeSeedHonored(makeOpenAiChat(endpoint, key), sutModel);
+  // resolveSeedHonored degrades to "unprobed" on any probe failure (Step 1 diagnosis, 2026-07-21: a
+  // provider empty-content failure here must never crash the whole apply the way an unguarded
+  // probeSeedHonored call once did) and threads the SUT's own requestOverrides into the probe's calls,
+  // so a verified thinking-mode toggle covers the probe too, not just the dyad turns below.
+  const seedHonored = await resolveSeedHonored(makeOpenAiChat(endpoint, key), sutModel, sutRequestOverrides);
 
   // providerObserved (contract event 0.2.0): FIRST bench-run response per live actor (model +
   // system_fingerprint), via per-actor onResponse closures. The anchor never speaks during a run
@@ -424,13 +479,19 @@ async function main(): Promise<number> {
   }
 }
 
-main()
-  .then((code) => {
-    process.exitCode = code;
-  })
-  .catch((err: unknown) => {
-    const message = err instanceof Error ? err.message : String(err);
-    process.stderr.write(`error: ${scrub(message)}\n`);
-    if (err instanceof UsageError) process.stderr.write(USAGE);
-    process.exitCode = 1;
-  });
+// Only run the CLI when this file is the process entry point — never on import. Without this guard,
+// cli.test.ts (added alongside requireKey/UsageError becoming exported for unit testing) would trigger
+// a full argv-driven dispatch as a side effect of merely importing the module.
+const isEntryPoint = process.argv[1] !== undefined && import.meta.url === `file://${process.argv[1]}`;
+if (isEntryPoint) {
+  main()
+    .then((code) => {
+      process.exitCode = code;
+    })
+    .catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`error: ${scrub(message)}\n`);
+      if (err instanceof UsageError) process.stderr.write(USAGE);
+      process.exitCode = 1;
+    });
+}

@@ -26,10 +26,11 @@ function read(rel) {
 
 test('build emits a complete localized shell with no template tokens', () => {
   const pages = walk(DIST, '.html');
-  // 68 indexable pages + 404. Was 66+1 before /check (the Conversation Lens)
-  // and /judge (the blind bench) joined the site; before that, 49 until the
+  // 70 indexable pages + 404. Was 68+1 before RD-2026-005 (en-only, no zh summary
+  // page) and its evidence report joined the site; before that, 66+1 before /check
+  // (the Conversation Lens) and /judge (the blind bench); before that, 49 until the
   // ten GLOSSARY.md Part I terms each got standalone EN + ZH pages.
-  assert.equal(pages.length, 69);
+  assert.equal(pages.length, 71);
   for (const file of pages) {
     const html = fs.readFileSync(file, 'utf8');
     assert.doesNotMatch(html, /{{[A-Z_]+}}/, path.relative(DIST, file));
@@ -274,7 +275,37 @@ test('ruling pages carry verified case-facts boxes, dated Article markup, and th
     assert.match(en, /<a href="\/about">Holden Hale<\/a>/, id);
     assert.match(zh, /<a href="\/zh\/about">Holden Hale<\/a>/, id);
   }
-  assert.equal(Object.keys(RULING_FACTS).length, 4);
+
+  // RD-2026-005: same case-facts/JSON-LD/author discipline as 001-004, but published on a
+  // different date and — by disclosed design (the respondent is this bench's own frozen zh
+  // anchor model; en-only scope) — with no zh summary page, so it gets its own block rather
+  // than joining the loop above.
+  {
+    const id = 'RD-2026-005';
+    const rawMd = fs.readFileSync(path.join(SITE, '..', 'rulings', 'ruling-05.md'), 'utf8');
+    const facts = verifyRulingFacts(id, rawMd);
+    assert.throws(
+      () => verifyRulingFacts(id, rawMd.replaceAll(facts.sourceChecks[0], '')),
+      /not found verbatim/,
+      id
+    );
+
+    const en = read('rulings/rd-2026-005.html');
+    assert.match(en, /class="ruling-meta case-facts"/, id);
+    assert.ok(en.includes(`Case facts — CompanionCourt ruling ${id}`), id);
+    const quoteHtml = facts.quote.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    assert.ok(en.includes(`<q>${quoteHtml}</q>`), `${id}: verbatim ruling quote missing from case-facts box`);
+    assert.ok(en.includes(authorJson), id);
+    assert.match(en, /"datePublished":"2026-07-22","dateModified":"2026-07-22"/, id);
+    assert.match(en, /<a href="\/about">Holden Hale<\/a>/, id);
+
+    assert.match(sitemap, /<loc>https:\/\/companioncourt\.ai\/rulings\/rd-2026-005<\/loc><lastmod>2026-07-22<\/lastmod>/, id);
+    // No zh summary page for this ruling (disclosed en-only scope) — must not appear in the sitemap.
+    assert.doesNotMatch(sitemap, /\/zh\/rulings\/rd-2026-005/, id);
+    assert.equal(fs.existsSync(path.join(DIST, 'zh/rulings/rd-2026-005.html')), false, id);
+  }
+
+  assert.equal(Object.keys(RULING_FACTS).length, 5);
 });
 
 test('report library pages expose Apache-2.0 Dataset markup with a Person creator', () => {
@@ -283,6 +314,7 @@ test('report library pages expose Apache-2.0 Dataset markup with a Person creato
     'reports/report-hb-companion-product.html',
     'reports/report-claude-sonnet-4-6.html',
     'reports/sample-diagnostic-report-qwen-max.html',
+    'reports/report-DMXAPI-deepseek-v4-flash.html',
   ]) {
     const html = read(rel);
     assert.match(html, /"@type":"Dataset"/, rel);

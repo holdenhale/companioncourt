@@ -59,7 +59,7 @@ test("adapterVersion is pinned to the subject adapter contract", () => {
     seed: "s2",
     seedHonored: false
   });
-  assert.equal(m.adapterVersion, "openai-chat-v1");
+  assert.equal(m.adapterVersion, "openai-chat-v2");
   assert.equal(m.seedHonored, false);
 });
 
@@ -82,6 +82,28 @@ test("a pin's effectiveAdjustments pass through buildManifest verbatim", () => {
   assert.deepEqual(m.personaActor.effectiveAdjustments, ["temperature-dropped"]);
   assert.equal(m.personaActor.temperature, 0.9, "the REQUESTED temperature stays on the pin");
   assert.equal(m.sut.effectiveAdjustments, undefined, "pins without adjustments stay bare");
+});
+
+// CONTRACT EVENT 0.3.0: a pin's requestOverrides (subject.ts's ChatOpts.extraBody, set proactively by
+// the CLI/caller before the run starts — unlike effectiveAdjustments, which the adapter discovers
+// reactively) must also pass through buildManifest verbatim. This is the manifest-disclosure half of the
+// M3-A closeout's "effective request adjustments 未入 manifest" obligation.
+test("a pin's requestOverrides pass through buildManifest verbatim (extraBody disclosure)", () => {
+  const overrides = { thinking_mode: "disabled" };
+  const m = buildManifest({
+    ...pins,
+    sut: { ...pins.sut, requestOverrides: overrides },
+    mode: "dyad",
+    benchVersion: "0.2.1",
+    corpusVersion: "corpus-v1",
+    corpusHash: "c".repeat(12),
+    anchorPackHash: "a".repeat(12),
+    promptHashes: basePromptHashes,
+    seed: "s6",
+    seedHonored: "unprobed"
+  });
+  assert.deepEqual(m.sut.requestOverrides, overrides);
+  assert.equal(m.anchor.requestOverrides, undefined, "pins without overrides stay bare");
 });
 
 test("runId carries the startedAt date prefix and a 12-char hash segment", () => {

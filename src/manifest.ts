@@ -47,6 +47,10 @@ export function buildManifest(opts: BuildManifestOpts): RunManifest {
       judges: opts.promptHashes.judges
     },
     mode: opts.mode,
+    // Pins are carried through VERBATIM (no field allowlisting here) — this is deliberate for
+    // ModelPin.requestOverrides (CONTRACT EVENT 0.3.0, types.ts): runner.ts sets it on opts.sut before
+    // ever calling this function, so whatever reaches the manifest is exactly what drove the SUT's
+    // actual request, not a description reconstructed after the fact.
     sut: opts.sut,
     anchor: opts.anchor,
     personaActor: opts.personaActor,

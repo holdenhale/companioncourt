@@ -99,11 +99,14 @@ npm install
 # deterministic smoke: all-fake models, zero network — the whole pipeline in one pass
 npm run bench:smoke
 
+# set the provider key once — every subcommand below picks it up, no --key needed (and it never
+# touches argv/process listings this way; --key is still accepted if you'd rather pass it explicitly)
+export COMPANIONCOURT_API_KEY="sk-..."
+
 # 1. freeze an anchor pack (one reference conversation per corpus case).
 #    Or skip this step and reproduce against a frozen pack in packs/ (see packs/README.md).
 node dist/bin/cli.js anchor \
   --endpoint https://api.your-provider.example \
-  --key "$COMPANIONCOURT_API_KEY" \
   --anchor-model anchor-model-name \
   --persona-model persona-model-name \
   --out anchor-pack.json
@@ -111,7 +114,6 @@ node dist/bin/cli.js anchor \
 # 2. run the bench against a respondent model
 node dist/bin/cli.js run \
   --endpoint https://api.your-provider.example \
-  --key "$COMPANIONCOURT_API_KEY" \
   --model subject-model-name \
   --anchor-pack anchor-pack.json \
   --mode dyad \
@@ -122,7 +124,7 @@ node dist/bin/cli.js docket --runs runs/ --out board/
 ```
 
 The endpoint must speak the OpenAI-compatible `/v1/chat/completions` shape. After `npm install` the CLI
-is also on the path as `npx companioncourt <command>`. The `--key` value is never echoed by the CLI —
+is also on the path as `npx companioncourt <command>`. The API key value is never echoed by the CLI —
 not in errors, not in output files — and every artifact is refused (not written) if it matches the
 redaction pattern for tracked secret shapes. The runner source lives in this repository (`src/`, built
 to `dist/`); see `runner/README.md` for the full reference and `packs/README.md` for the frozen anchor
@@ -135,7 +137,7 @@ packs you can reproduce against.
 | `GLOSSARY.md` | Doctrine vocabulary and the docket's memorable case names (bilingual). |
 | `rules/` | The rules packet: rules of procedure, evidence standard, verdict template, plus the three governance policies. |
 | `docket/` | The public docket seed — a handful of full case files (persona spec, ground truth, judging guidance) from the versioned public corpus. |
-| `rulings/` | Four launch rulings, including the NOT-YET ruling on our own companion product. See `rulings/INDEX.md`. |
+| `rulings/` | Five launch rulings, including the NOT-YET ruling on our own companion product. See `rulings/INDEX.md`. |
 | `src/` | The runner source (TypeScript): subject adapter, persona driver, dual judge families, scoring, manifest, corpus, docket page builder, report generator, and the CLI. Built to `dist/` by `npm install`. |
 | `lens/` | Conversation Lens Worker, public reader prompt, ingestion paths, response contract, budget controls, and tests. |
 | `site/` | Static public site, including the `/check`, `/judge`, and submission experiences. |

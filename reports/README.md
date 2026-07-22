@@ -40,6 +40,10 @@ Section order is fixed (full spec: `../rules/verdict-template.md` §1):
   for RD-2026-004; the respondent is **named by policy** — see the report's naming note).
 - `sample-diagnostic-report-qwen-max.md` — `qwen-max`'s M3-A report (evidence for RD-2026-003;
   also serves as the format sample below).
+- `report-DMXAPI-deepseek-v4-flash.md` — `DMXAPI-deepseek-v4-flash`'s en-only diagnostic report
+  (evidence for RD-2026-005; the base model is named per the respondent-naming decision — this
+  respondent also serves as the bench's frozen zh anchor model in other campaigns, disclosed in the
+  report's naming note and in the ruling's scope discipline section).
 
 ## Sample
 
