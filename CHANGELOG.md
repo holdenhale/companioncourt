@@ -4,7 +4,7 @@ The CompanionCourt type contract (`src/types.ts`) is frozen: changing it is a **
 recorded here with a version bump — never a silent refactor. Manifests carry the package version as
 `benchVersion`, so every persisted run names the contract it was written under.
 
-## Unreleased
+## 0.3.0 — 2026-07-22
 
 - **Ruling RD-2026-005 published** — `DMXAPI-deepseek-v4-flash`, en docket only (12 cases / 13
   caseKeys, N=3 seeds, 39/39 scored, 0 inconclusive). Primary case `cb-03-winback-closed-door`
